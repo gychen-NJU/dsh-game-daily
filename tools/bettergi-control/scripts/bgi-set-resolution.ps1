@@ -29,7 +29,7 @@
 .PARAMETER RegKey
     注册表根键，默认 HKCU:\Software\miHoYo\原神（国际服可传 HKCU:\Software\miHoYo\Genshin Impact）。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI（用来找 YuanShen.exe 与 BetterGI.exe）。
+    BetterGI 安装根，默认 C:\software\BetterGI（用来找 YuanShen.exe 与 BetterGI.exe）。
 .PARAMETER InstallPath
     YuanShen.exe 绝对路径；省略时从 BetterGI 的 User\config.json 里读 genshinStartConfig.installPath。
 .PARAMETER StateDir
@@ -75,7 +75,7 @@ param(
     [int]$Height = 1080,
     [int]$Fullscreen = 0,
     [string]$RegKey = 'HKCU:\Software\miHoYo\原神',
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [string]$InstallPath = '',
     [string]$StateDir = '',
     [switch]$Apply,
@@ -182,7 +182,7 @@ function Get-IsElevated {
 # 免 UAC 启动。BetterGI 启动时**无条件自我提权**（App.xaml.cs:64 .UseElevated() →
 # RuntimeHelper.EnsureElevated() → 非提权就 RestartAsElevated() 用 Verb=runas），
 # 所以从非提权上下文直接 Start-Process **必然弹一次 UAC** —— 夜里没人点就白跑。
-# 本机装有 RunLevel=Highest 的计划任务「BetterGI 按需执行」（跑 D:\software\BetterGI\_ondemand_runner.ps1），
+# 本机装有 RunLevel=Highest 的计划任务「BetterGI 按需执行」（跑 C:\software\BetterGI\_ondemand_runner.ps1），
 # 走它 = 由任务计划服务提权启动，**不弹任何框**。请求文件协议：写 _run_request.json → Start-ScheduledTask。
 # 注意：只用 $script:startInfo 回传，函数内绝不 return 对象（避免输出流被当返回值吞掉）。
 $script:startInfo = $null

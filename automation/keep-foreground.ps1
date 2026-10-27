@@ -34,7 +34,7 @@
   不向控制台输出（日志照写）。
 
 .EXAMPLE
-  powershell -NoProfile -ExecutionPolicy Bypass -File D:\software\BetterGI\_keep_foreground.ps1 -MaxMinutes 120
+  powershell -NoProfile -ExecutionPolicy Bypass -File C:\software\BetterGI\_keep_foreground.ps1 -MaxMinutes 120
 #>
 [CmdletBinding()]
 param(

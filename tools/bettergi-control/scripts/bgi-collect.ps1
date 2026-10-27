@@ -30,7 +30,7 @@ param(
     [string[]]$ExtraDirs = @(),
     [switch]$Run,
     [switch]$DryRun,
-    [string]$Root = 'D:\software\BetterGI'
+    [string]$Root = 'C:\software\BetterGI'
 )
 
 $ErrorActionPreference = 'Continue'

@@ -24,7 +24,7 @@
 .PARAMETER Overwrite
     覆盖已存在的文件
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根，默认 C:\software\BetterGI
 .EXAMPLE
     pwsh -File bgi-fetch-route.ps1 -Material 星螺                 # 只检索
     pwsh -File bgi-fetch-route.ps1 -Material 星螺 -Download       # 检索 + 下载
@@ -41,7 +41,7 @@ param(
     [switch]$All,
     [switch]$Overwrite,
     [switch]$RefreshIndex,
-    [string]$Root = 'D:\software\BetterGI'
+    [string]$Root = 'C:\software\BetterGI'
 )
 
 $ErrorActionPreference = 'Stop'

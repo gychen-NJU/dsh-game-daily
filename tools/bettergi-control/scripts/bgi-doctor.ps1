@@ -16,7 +16,7 @@
       ⑦ 一条龙配置：列出配置名与任务顺序
       ⑧ 采集闭环件：MCP 服务器文件与 cordis.patch.yml 注册、`_daily_runner.ps1` 包装器
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根，默认 C:\software\BetterGI
 .PARAMETER Json
     输出机器可读 JSON
 .PARAMETER Material
@@ -28,7 +28,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$Json,
     [string]$Material = ''
 )

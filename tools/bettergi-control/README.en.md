@@ -20,7 +20,7 @@ Or click the fix button next to the skill check in DSH Settings → Game Daily �
 
 | Requirement | Notes |
 | --- | --- |
-| BetterGI 0.66.x | Default `D:\software\BetterGI`; every script accepts `-Root` |
+| BetterGI 0.66.x | Default `C:\software\BetterGI`; every script accepts `-Root` |
 | PowerShell 5.1 | Scripts are UTF-8 **with BOM**; keep the BOM or Chinese text breaks under PS 5.1 |
 | Windows 10/11 | Needs Task Scheduler, window APIs; Genshin must be 16:9, ≥1920×1080, visible and foreground |
 

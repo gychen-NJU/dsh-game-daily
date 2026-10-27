@@ -27,7 +27,7 @@ param(
     [int]$TimeoutMinutes = 60,
     [switch]$DryRun,
     [int]$SinceMinutes = 180,
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [string]$Name = '',            # 配置组名：用于过滤 ExecutionRecords（-Mode groups 时更准）
     [switch]$Json
 )

@@ -1,6 +1,6 @@
 ﻿# BetterGI 配方集（10 个，可直接照抄）
 
-> 约定：`$S = %USERPROFILE%\.agents\skills\bettergi-control\scripts`；`<BGI> = D:\software\BetterGI`。
+> 约定：`$S = %USERPROFILE%\.agents\skills\bettergi-control\scripts`；`<BGI> = C:\software\BetterGI`。
 > 每个配方都**先跑前置检查**：`pwsh -File $S\bgi-status.ps1`（只读）。
 > 需要改文件的配方：**先让用户从托盘退出 BetterGI**（运行中会被回写覆盖）。
 
@@ -151,9 +151,9 @@ pwsh -File $S\bgi-watch.ps1 -Mode oneDragon -TimeoutMinutes 1   # 只读判定�
 **命令**
 ```powershell
 # 备份（agent 侧，任何写操作前）
-$bk = "D:\software\BetterGI\_backup_$(Get-Date -Format yyyyMMdd_HHmmss)"
+$bk = "C:\software\BetterGI\_backup_$(Get-Date -Format yyyyMMdd_HHmmss)"
 New-Item -ItemType Directory -Force -Path $bk | Out-Null
-Copy-Item 'D:\software\BetterGI\User\config.json','D:\software\BetterGI\User\OneDragon\*.json' -Destination $bk -Force
+Copy-Item 'C:\software\BetterGI\User\config.json','C:\software\BetterGI\User\OneDragon\*.json' -Destination $bk -Force
 # 回滚：先退出 BetterGI，再把备份覆盖回去
 ```
 **红线**：`User\` 整个目录是用户数据（配置组/脚本/策略/队伍），**任何"重装"前先备份它**；`log\` 与 `User\` 是安装器保留目录。

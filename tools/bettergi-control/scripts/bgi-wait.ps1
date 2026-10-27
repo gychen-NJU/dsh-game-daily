@@ -37,7 +37,7 @@ param(
     [string]$Pattern = '',
     [int]$TimeoutSeconds = 45,
     [int]$SinceMinutes = 0,
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$Json
 )
 

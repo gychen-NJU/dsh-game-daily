@@ -472,7 +472,7 @@ window.__ModuleLoader__.load({
                   className: 'gd-input',
                   style: { minWidth: '320px' },
                   value: draft.gamePath,
-                  placeholder: game.engine === 'bettergi' ? 'D:\\software\\BetterGI\\BetterGI.exe' : '',
+                  placeholder: game.engine === 'bettergi' ? 'C:\\software\\BetterGI\\BetterGI.exe' : '',
                   onChange: (event) => setField({ gamePath: event.target.value }),
                 })),
               h('p', { className: 'gd-detail' }, `${t('taskState')}：${taskNote}`),
