@@ -12,7 +12,7 @@
  *       → 工具名形如 mcp__bettergi__bgi_collect_material
  *
  * 环境变量（都可省略）：
- *   BETTERGI_ROOT      BetterGI 安装根，默认 D:\software\BetterGI
+ *   BETTERGI_ROOT      BetterGI 安装根，默认 C:\software\BetterGI
  *   BETTERGI_SKILL_DIR bettergi-control skill 的 scripts 目录
  *   BETTERGI_REPO_RAW  官方路线仓库 raw 前缀（默认 GitHub；CNB 在本机 DNS 失败）
  */
@@ -24,7 +24,7 @@ import path from 'node:path';
 import { evaluateRunGate, statusForGate } from './run-gate.mjs';
 
 // ─────────────────────────── 常量与路径 ───────────────────────────
-const BGI_ROOT = process.env.BETTERGI_ROOT || 'D:\\software\\BetterGI';
+const BGI_ROOT = process.env.BETTERGI_ROOT || 'C:\\software\\BetterGI';
 const SKILL_DIR =
   process.env.BETTERGI_SKILL_DIR || path.join(homedir(), '.agents', 'skills', 'bettergi-control', 'scripts');
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));

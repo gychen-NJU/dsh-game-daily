@@ -36,7 +36,7 @@ param(
     [int]$Tail = 60,
     [string]$Task = '',
     [string]$LogPath = '',
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$Json
 )
 

@@ -1,7 +1,7 @@
 # BetterGI 命令行 / 路径 / 数据格式速查
 
-> 依据：BetterGI **0.66.0**（本机 `D:\software\BetterGI`）+ 源码 `0.66.2-alpha.2` 快照核对。
-> 所有路径以 `<BGI>` 代表安装根 `D:\software\BetterGI`。
+> 依据：BetterGI **0.66.0**（本机 `C:\software\BetterGI`）+ 源码 `0.66.2-alpha.2` 快照核对。
+> 所有路径以 `<BGI>` 代表安装根 `C:\software\BetterGI`。
 
 ## 1. 命令行（全部动作，就这 5 个）
 
@@ -21,7 +21,7 @@
 调用示例（注意 exe 路径要带引号）：
 
 ```powershell
-$exe = 'D:\software\BetterGI\BetterGI.exe'
+$exe = 'C:\software\BetterGI\BetterGI.exe'
 & $exe start
 & $exe startOneDragon 日常
 & $exe --startGroups '采集-星螺'

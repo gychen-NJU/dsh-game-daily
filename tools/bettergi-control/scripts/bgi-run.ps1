@@ -31,7 +31,7 @@ param(
     [switch]$Wait,
     [switch]$DryRun,
     [int]$WaitSeconds = 120,
-    [string]$Root = 'D:\software\BetterGI'
+    [string]$Root = 'C:\software\BetterGI'
 )
 
 $ErrorActionPreference = 'Stop'

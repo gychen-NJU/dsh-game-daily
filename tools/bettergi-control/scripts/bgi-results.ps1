@@ -32,7 +32,7 @@ param(
     [int]$Days = 1,
     [string]$Group = '',
     [string]$Material = '',
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$Json
 )
 

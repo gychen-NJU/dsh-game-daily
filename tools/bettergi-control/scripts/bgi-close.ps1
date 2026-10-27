@@ -137,7 +137,7 @@ if (@($results | Where-Object { $_.outcome -eq 'access-denied' }).Count -gt 0) {
     } elseif ($null -eq $task) {
         $taskStop = [ordered]@{ attempted = $false; note = "计划任务「$taskName」不存在，无法免 UAC 关闭" }
     } else {
-        $rootBgi = 'D:\software\BetterGI'
+        $rootBgi = 'C:\software\BetterGI'
         $reqPath = Join-Path $rootBgi '_run_request.json'
         $resPath = Join-Path $rootBgi '_run_request.result.json'
         $stopName = switch ($Target) { 'game' { 'game' } 'bettergi' { 'bettergi' } default { 'both' } }
