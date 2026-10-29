@@ -11,7 +11,7 @@ import { newRunId, summaryOf, listRuns, writeJson, metaPathOf, reportPathOf } fr
 import { queryTasks, taskStatus, refreshTaskInfo, readTaskDefinition, computeNextRun } from '../lib/tasks.mjs';
 import { guardScriptPath, guardStatus, aliveFromError, readRunner } from '../lib/runner.mjs';
 import { resolveBettergiMcp, vendorPath, bundledPath } from '../lib/bettergi-mcp.mjs';
-import { SKILL_REPOS, inspectSkill, skillInstallPath, installSkill, bundledSkillPath } from '../lib/skills.mjs';
+import { SKILL_REPOS, inspectSkill, skillInstallPath, installSkill, bundledSkillPath, installSkillGroup, runCoverage } from '../lib/skills.mjs';
 import { registerBettergiMcp, hasBettergiMcpRow, bettergiMcpPatchPath } from '../lib/mcp-register.mjs';
 import { GAME_PROCESSES, runningGames, closeGame } from '../lib/gameproc.mjs';
 import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensureZzzConfigs, detectZzzGamePath, inspectZzzInstallRoot } from '../lib/zzz.mjs';
@@ -390,6 +390,32 @@ Promise.resolve()
       if (local !== pkg.version) throw new Error(`本地版本读取不一致：${local} vs ${pkg.version}`);
       if (compareVersions('9.9.9', local) <= 0) throw new Error('远端更高版本应判定为有更新');
       return `local=${local}`;
+    });
+    await checkAsync('game-daily 技能族自动安装', async () => {
+      // 1) 三条注册项：同一个 zip、各自 subdir、required/minFiles 合法
+      const family = ['game-daily', 'game-daily-hi', 'game-daily-sr'];
+      const zips = new Set();
+      for (const name of family) {
+        const spec = SKILL_REPOS[name];
+        if (!spec) throw new Error(`SKILL_REPOS 缺 ${name}`);
+        if (spec.subdir !== name) throw new Error(`${name}.subdir 应为 ${name}，实际 ${spec.subdir}`);
+        if (!Array.isArray(spec.required) || !spec.required.includes('SKILL.md')) throw new Error(`${name} 必须 required 含 SKILL.md`);
+        if (!spec.zip || !/codeload\.github\.com/.test(spec.zip)) throw new Error(`${name} 缺 codeload zip`);
+        zips.add(spec.zip);
+      }
+      if (zips.size !== 1) throw new Error(`三套技能应共用一个 zip，实际 ${zips.size} 个`);
+      if (!/gychen-NJU\/game-daily/.test(SKILL_REPOS['game-daily'].repo)) throw new Error('repo 应为 gychen-NJU/game-daily');
+      // 2) 未知技能 / 缺 root / bundled 缺失时的错误必须清晰（不联网）
+      const unknown = await installSkill('nope-skill', { root: os.tmpdir() });
+      if (unknown.ok !== false || !/未知技能/.test(unknown.error)) throw new Error('未知技能应报「未知技能」');
+      const noRoot = await installSkill('game-daily', { root: '' });
+      if (noRoot.ok !== false || !/技能根目录/.test(noRoot.error)) throw new Error('缺 root 应报技能根目录');
+      const noBundle = await installSkill('game-daily-hi', { root: os.tmpdir(), source: 'bundled' });
+      if (noBundle.ok !== false || !/没有自带/.test(noBundle.error)) throw new Error('插件没自带时应报「没有自带该技能」');
+      // 3) coverage：技能不存在时安静返回空数组（不抛）
+      const empty = runCoverage(path.join(os.tmpdir(), 'gd-no-such-skills-root'));
+      if (!Array.isArray(empty) || empty.length !== 0) throw new Error('coverage 在缺技能时应返回空数组');
+      return `family=3 zip=1 subdir ok, 错误文案与 coverage 兜底 ok`;
     });
     await checkAsync('report session reuse', async () => {
       const state = normalizeState({ reportSessionIds: { genshin: 'session-abc', hi: 'nope', sr: 'session-9' } });

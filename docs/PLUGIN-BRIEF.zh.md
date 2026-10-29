@@ -43,7 +43,7 @@
 | 顶部游戏切换 | 四个 tab：原神 / 崩坏3 / 崩坏：星穹铁道 / 绝区零（走 ZenlessZoneZero-OneDragon「一条龙」） |
 | 逐游戏总开关 | **默认关闭**；关闭时只显示说明和「开启代理」，开启后才展开排班与执行设置 |
 | 每游戏排班 | 每天时间 `HH:MM`、执行日（每天 / 指定星期 1–7）、超时 5–180 分钟、错过补跑、模式（真实执行 / 演练） |
-| 依赖体检 | 逐项给出「就绪 / 可用但有风险 / 缺失 / 阻断」，每项可点「让 DSH 修这个」：能自动做的（装 bettergi-control 技能、下载 bettergi-mcp、注册 MCP 配置）一键完成并显示「处理中…」，需要多步或提权的才新开会话修 |
+| 依赖体检 | 逐项给出「就绪 / 可用但有风险 / 缺失 / 阻断」，每项可点「让 DSH 修这个」：能自动做的（装 bettergi-control 技能、**一个 zip 装三套 game-daily 技能族**、下载 bettergi-mcp、注册 MCP 配置）一键完成并显示「处理中…」，需要多步或提权的才新开会话修 |
 | 一键落地 | 「保存并应用」写入配置 → 生成 `automation/tasks.json` → 调提权脚本注册 Windows 计划任务（会弹一次 UAC） |
 | 到点自动跑 | 计划任务 → `automation/run-headless.mjs` → `dsh --profile headless` 按技能执行 → 写 `report.json` |
 | 结果汇报 | 插件每 60 秒 reconcile：记账、Windows 通知（toast）、按开关在 DSH 里开一个「游戏日常 · <游戏> 汇报」会话 |
@@ -236,9 +236,9 @@
 | `dsh-version` | ≥ 0.2.1-rc.2 | 警告（升级） |
 | `headless` | headless profile 存在 + credentials 已启用 | 阻断（修 patch） |
 | `computer-use` | `dsh-computer-use-win` 已装 | 警告（安装插件） |
-| `skills` | `game-daily` / `game-daily-hi` / `game-daily-sr` 的 SKILL.md | 阻断（恢复技能） |
-| `calibration` | 技能引擎游戏有 `state/coords.local.json` | 警告（校准） |
-| `locate` | 定位资产：`scripts/{locate,layout,resolution,coverage}.mjs` + `<模块>/references/templates/`（含 index/anchors/regions）+ `<game>-layout.json` | 警告（补资产；缺模板的步骤 fail-closed 停手） |
+| `skills` | `game-daily` / `game-daily-hi` / `game-daily-sr` 的 SKILL.md | 阻断（**一键自动安装**：一个 zip 装三套，装完自动跑 coverage 自检） |
+| `calibration` | 技能引擎游戏有 `state/coords.local.json` | 警告（校准；定位优先后只作兜底） |
+| `locate` | 定位资产：`scripts/{locate,layout,resolution,coverage}.mjs` + `<模块>/references/templates/`（含 index/anchors/regions）+ `<game>-layout.json` | 警告（**从 GitHub 重装技能族补齐**；缺模板的步骤 fail-closed 停手） |
 | `helper` | 提权助手 `state/helper.pid` 存活 | 阻断（启动助手，一次 UAC） |
 | `bettergi` | BetterGI 安装位置与版本 | 警告（安装/改路径） |
 | `bettergi-skill` | bettergi-control 技能（`SKILL.md` + ≥10 个脚本） | 阻断（**一键安装自带技能**，不联网） |

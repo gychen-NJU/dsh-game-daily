@@ -24,7 +24,7 @@ import { buildInstallPrompt, buildReportPrompt } from './lib/prompt.mjs';
 import { openSession, appendSession, sessionExists } from './lib/install.mjs';
 import { notify } from './lib/notify.mjs';
 import { resolveBettergiMcp, fetchBettergiMcp } from './lib/bettergi-mcp.mjs';
-import { installSkill } from './lib/skills.mjs';
+import { installSkill, installSkillGroup, runCoverage } from './lib/skills.mjs';
 import { registerBettergiMcp } from './lib/mcp-register.mjs';
 import { resolveNodeExe } from './lib/nodeexe.mjs';
 import { ensureZzzServer, installZzzOneDragon } from './lib/zzz.mjs';
@@ -535,6 +535,31 @@ export function apply(ctx) {
                 installed.source === 'bundled' ? '，来自插件自带副本（未联网）' : '，来自 GitHub'
               }。`
             : installed.error,
+        };
+      }
+      if (body.action === 'install-game-daily-skills' || body.action === 'install-skills') {
+        // 崩三 / 星铁技能族：game-daily（公共层）+ game-daily-hi + game-daily-sr 共用一个仓库 zip。
+        // 三套只下载一次，装完立刻跑 coverage 自检（模板/锚点/变体是否齐）。
+        const group = await installSkillGroup(['game-daily', 'game-daily-hi', 'game-daily-sr'], {
+          root: env.skillsRoot,
+        });
+        const done = (group.results || []).filter((item) => item.ok === true);
+        const failed = (group.results || []).filter((item) => item.ok !== true);
+        const parts = [];
+        if (done.length) {
+          parts.push(
+            `已安装 ${done.map((item) => `${item.name}（${item.files} 文件，来自${item.source === 'bundled' ? '插件自带副本' : ' GitHub'}）`).join('、')}`
+          );
+        }
+        if (failed.length) parts.push(`失败：${failed.map((item) => `${item.name}：${item.error}`).join('；')}`);
+        const coverage = runCoverage(env.skillsRoot, ['game-daily-hi', 'game-daily-sr']);
+        if (coverage.length) parts.push(coverage.join('；'));
+        return {
+          ok: group.ok === true,
+          action: body.action,
+          group,
+          coverage,
+          note: parts.join('；') || '没有安装任何技能',
         };
       }
       if (body.action === 'start-zzz-server') {
