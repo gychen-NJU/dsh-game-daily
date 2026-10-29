@@ -21,7 +21,7 @@ import {
 import { startRun, stopRun, readRunner, isRunning } from './lib/runner.mjs';
 import { listRuns, readReport, metaPathOf, readJsonSafe } from './lib/report.mjs';
 import { buildInstallPrompt, buildReportPrompt } from './lib/prompt.mjs';
-import { openSession } from './lib/install.mjs';
+import { openSession, appendSession, sessionExists } from './lib/install.mjs';
 import { notify } from './lib/notify.mjs';
 import { resolveBettergiMcp, fetchBettergiMcp } from './lib/bettergi-mcp.mjs';
 import { installSkill } from './lib/skills.mjs';
@@ -249,6 +249,7 @@ export function apply(ctx) {
         };
       }),
       lastError: store.lastError || '',
+      reportSessionIds: { ...(state.reportSessionIds || {}) },
     };
   };
 
@@ -312,17 +313,36 @@ export function apply(ctx) {
       }
       if (store.get().ui.reportSessions !== false) {
         try {
-          const result = await openSession(ctx, {
-            title: `游戏日常 · ${game.title} 汇报`,
-            cwd: env.stateDir,
-            prompt: buildReportPrompt({
-              game,
-              runId: run.runId,
-              report,
-              reportPath: path.join(run.dir, 'report.json'),
-            }),
+          const prompt = buildReportPrompt({
+            game,
+            runId: run.runId,
+            report,
+            reportPath: path.join(run.dir, 'report.json'),
           });
-          if (!result.ok) logger.log(`汇报会话创建失败：${result.error}`);
+          const title = `游戏日常 · ${game.title} 汇报`;
+          const saved = store.get().reportSessionIds?.[game.id] || '';
+          // 每个游戏只保留一个汇报会话：有旧的就往里追加，旧会话被删/不可用才新建。
+          let result = saved && (await sessionExists(ctx, saved)) ? await appendSession(ctx, { sessionId: saved, prompt }) : null;
+          if (!result || !result.ok) {
+            if (saved) {
+              const why = result ? result.error : '旧汇报会话已不存在（可能被删了）';
+              logger.log(`复用汇报会话失败（${saved}）：${why}；改为新建`);
+            }
+            result = await openSession(ctx, {
+              title,
+              cwd: env.stateDir,
+              prompt,
+            });
+          }
+          if (result.ok) {
+            if (result.sessionId !== saved) {
+              store.mutate((current) => {
+                current.reportSessionIds = { ...(current.reportSessionIds || {}), [game.id]: result.sessionId };
+              });
+            }
+          } else {
+            logger.log(`汇报会话创建失败：${result.error}`);
+          }
         } catch (error) {
           logger.log(`汇报会话异常：${String((error && error.message) || error)}`);
         }

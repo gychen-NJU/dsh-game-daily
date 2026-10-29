@@ -16,6 +16,7 @@ import { registerBettergiMcp, hasBettergiMcpRow, bettergiMcpPatchPath } from '..
 import { GAME_PROCESSES, runningGames, closeGame } from '../lib/gameproc.mjs';
 import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensureZzzConfigs, detectZzzGamePath, inspectZzzInstallRoot } from '../lib/zzz.mjs';
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
+import { appendSession } from '../lib/install.mjs';
 
 const results = [];
 // 后台刷新一次任务信息，验证异步 PowerShell 路径（真实环境里这一步由请求触发、不阻塞 UI）。
@@ -389,6 +390,30 @@ Promise.resolve()
       if (local !== pkg.version) throw new Error(`本地版本读取不一致：${local} vs ${pkg.version}`);
       if (compareVersions('9.9.9', local) <= 0) throw new Error('远端更高版本应判定为有更新');
       return `local=${local}`;
+    });
+    await checkAsync('report session reuse', async () => {
+      const state = normalizeState({ reportSessionIds: { genshin: 'session-abc', hi: 'nope', sr: 'session-9' } });
+      if (state.reportSessionIds.genshin !== 'session-abc') throw new Error('应保留合法 sessionId');
+      if (state.reportSessionIds.hi) throw new Error('应丢弃非法 sessionId');
+      if (state.reportSessionIds.sr !== 'session-9') throw new Error('应保留 session-9');
+      const calls = [];
+      const ctx = {
+        get(key) {
+          if (key !== 'sessionController') return undefined;
+          return { prompt: async (req) => { calls.push(req); } };
+        },
+      };
+      const ok = await appendSession(ctx, { sessionId: 'session-abc', prompt: 'hi' });
+      if (!ok.ok || calls.length !== 1 || calls[0].sessionId !== 'session-abc') throw new Error('追加应调用 prompt');
+      if (!Array.isArray(calls[0].content) || calls[0].content[0].text !== 'hi') throw new Error('prompt 内容不对');
+      const bad = await appendSession(
+        { get: () => ({ prompt: async () => { throw new Error('gone'); } }) },
+        { sessionId: 'session-x', prompt: 'hi' },
+      );
+      if (bad.ok !== false) throw new Error('会话不可用时应返回 ok:false');
+      const empty = await appendSession(ctx, { sessionId: '', prompt: 'hi' });
+      if (empty.ok !== false) throw new Error('没有 sessionId 时应返回 ok:false');
+      return 'reuse ok';
     });
     for (const item of results) console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}  ${item.detail}`);
     exitCode = results.some((item) => !item.ok) ? 1 : 0;

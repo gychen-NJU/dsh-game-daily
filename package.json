@@ -1,6 +1,6 @@
 {
   "name": "dsh-game-daily",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "DSH 插件：游戏日常代理（原神 / 崩坏3 / 星穹铁道 / 绝区零）——设置页逐游戏开关、每游戏排班、到点自动执行并汇报结果",
   "keywords": [
     "dsh",

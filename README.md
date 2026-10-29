@@ -63,7 +63,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
                                   <stateDir>/runs/<game>/<runId>/{meta.json,report.json,stdout.log,screens/}
                                                             │  插件每 60s reconcile
                                                             ▼
-                                        记录历史 → Windows 通知 → （可选）开汇报会话
+                                        记录历史 → Windows 通知 → （可选）在每个游戏**固定一个**汇报会话里追加结果（首次创建，之后复用；会话被删会自动重建）
 ```
 
 - headless 侧通过 `--patch` 叠加 overlay 注入 bettergi MCP（原神需要），并带 `DSH_PERMISSION_MODE=danger-full-access` 实现无人值守；崩3/星铁没有 wincu 时按技能说明用提权助手（`scripts/run-step.mjs --ps`）。
