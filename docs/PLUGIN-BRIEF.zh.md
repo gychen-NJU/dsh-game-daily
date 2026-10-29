@@ -154,9 +154,11 @@
 ### 崩坏3 / 星穹铁道（engine = skill）
 
 - 依赖：`~/.agents/skills/game-daily*` 技能族 + 提权助手（`state/helper.pid` 存活）或 DSH 的 computer-use 插件。
-- 流程：读对应 `SKILL.md` → 按 14 步逐屏「截图→认屏→点击/按键→复检」；坐标是相对坐标，首次需校准（`state/coords.local.json`）。
+- 流程：读对应 `SKILL.md` → 按 14 步逐屏「截图→认屏→**定位**→点击→复检」。**点击位置只能来自视觉定位**（`scripts/locate.mjs` + `<模块>/references/templates/<id>.png`，默认阈值 0.72）；`*coords.json` 与 layout 先验只当搜索窗，不允许退化成按坐标盲点。
+- 消歧三档：`templates/index.json` 多外观变体 → `anchors.json` 锚点+offset（位置漂移、文案唯一）→ `regions.json` 紧搜索窗（同页多行同形）。全屏命中但 `ambiguous=true` 必须停手或配紧窗。
+- 分辨率：`scripts/resolution.mjs` 按客户区尺寸记 `<stateDir>/resolution.json`——**分辨率未变时复用上次命中位置收窄搜索窗（更快），变了就让旧先验作废、按新尺寸重新定位**；跨分辨率命中会自动缩放模板（实测 1080p 模板在 2560×1600 以 scale≈1.33 命中，分数 0.73~0.79 属正常）。
 - 崩3 约 10–12 分钟；星铁 14 步（列车补给、F4 指南、刷本、活跃度 500 礼盒、F2 无名勋礼）。
-- 没有 computer-use 时走脚本 + 提权助手（`run-step.mjs --ps`）；合成鼠标被游戏过滤时按技能说明改用 computer-use。
+- 没有 computer-use 时走脚本 + 提权助手（`run-step.mjs --ps --locate`）；只看不点用 `--probe`；跑前用 `scripts/coverage.mjs <模块目录>` 自检模板覆盖率，缺模板的步骤一律 fail-closed 停手。合成鼠标被游戏过滤时按技能说明改用 computer-use。
 
 ### 绝区零（engine = zzz-od）
 
@@ -236,6 +238,7 @@
 | `computer-use` | `dsh-computer-use-win` 已装 | 警告（安装插件） |
 | `skills` | `game-daily` / `game-daily-hi` / `game-daily-sr` 的 SKILL.md | 阻断（恢复技能） |
 | `calibration` | 技能引擎游戏有 `state/coords.local.json` | 警告（校准） |
+| `locate` | 定位资产：`scripts/{locate,layout,resolution,coverage}.mjs` + `<模块>/references/templates/`（含 index/anchors/regions）+ `<game>-layout.json` | 警告（补资产；缺模板的步骤 fail-closed 停手） |
 | `helper` | 提权助手 `state/helper.pid` 存活 | 阻断（启动助手，一次 UAC） |
 | `bettergi` | BetterGI 安装位置与版本 | 警告（安装/改路径） |
 | `bettergi-skill` | bettergi-control 技能（`SKILL.md` + ≥10 个脚本） | 阻断（**一键安装自带技能**，不联网） |
