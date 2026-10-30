@@ -66,6 +66,8 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
                                         record history → Windows toast → (optional) report session
 ```
 
+- Every step of report delivery (`saved=` / `alive=` / `appended to …` or `reuse failed: <reason>; creating a new one`) is appended to `<stateDir>/automation/report.log`. The host logger is not persisted, so that file is the one place to look when asking "why was a new session created again?".
+
 - On the headless side, `--patch` layers an overlay that injects the bettergi MCP (needed by Genshin), and `DSH_PERMISSION_MODE=danger-full-access` makes the run unattended. HI/SR use the elevation helper (`scripts/run-step.mjs --ps`) when computer-use is unavailable.
 - The report is the only source of truth: `report.json`'s `status` is `success / partial / failed / timeout`; the plugin never guesses from process exit codes.
 - **Watchdog**: `run-headless.mjs` stops the headless run at "timeout − 5 min", writes a fallback `report.json` (`status=timeout`) and exits, so the OS time limit never kills the tree with nothing left behind.

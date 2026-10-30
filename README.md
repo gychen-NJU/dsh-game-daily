@@ -66,6 +66,8 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
                                         记录历史 → Windows 通知 → （可选）在每个游戏**固定一个**汇报会话里追加结果（首次创建，之后复用；会话被删会自动重建）
 ```
 
+- 汇报投递的每一步（`saved=` / `alive=` / `已追加到 …` 或 `复用失败：<原因>；改为新建`）都会写进 `<stateDir>/automation/report.log`：Host 的 logger 不落盘，排查「为什么又新建会话」只看这一个文件即可。
+
 - headless 侧通过 `--patch` 叠加 overlay 注入 bettergi MCP（原神需要），并带 `DSH_PERMISSION_MODE=danger-full-access` 实现无人值守；崩3/星铁没有 wincu 时按技能说明用提权助手（`scripts/run-step.mjs --ps`）。
 - 报告是唯一判定依据：`report.json` 的 `status` 为 `success / partial / failed / timeout`；插件只认这个文件，不猜进程退出码。
 - **看门狗**：`run-headless.mjs` 在「超时 − 5 分钟」到点时会主动停掉 headless、写一份兜底 `report.json`（`status=timeout`）再退出，避免被系统执行时限强杀后什么都不留下。
