@@ -160,6 +160,20 @@ function makeLogger(ctx) {
   };
 }
 
+/**
+ * 汇报投递的落盘日志（`<stateDir>/automation/report.log`）。
+ * Host logger 不落盘，出问题时无从查证——投递路径的每一步都写这里。
+ */
+function deliveryLog(stateDir, line) {
+  try {
+    const dir = path.join(stateDir, 'automation');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, 'report.log'), `[${new Date().toISOString()}] ${line}\n`, 'utf8');
+  } catch {
+    /* 日志写不进去不影响投递 */
+  }
+}
+
 export function apply(ctx) {
   const env = pluginEnv();
   const store = new Store({ dir: env.stateDir, taskPrefix: env.taskPrefix });
@@ -322,10 +336,13 @@ export function apply(ctx) {
           const title = `游戏日常 · ${game.title} 汇报`;
           const saved = store.get().reportSessionIds?.[game.id] || '';
           // 每个游戏只保留一个汇报会话：有旧的就往里追加，旧会话被删/不可用才新建。
-          let result = saved && (await sessionExists(ctx, saved)) ? await appendSession(ctx, { sessionId: saved, prompt }) : null;
+          const alive = saved ? await sessionExists(ctx, saved) : false;
+          deliveryLog(env.stateDir, `${game.id}/${run.runId} saved=${saved || '(空)'} alive=${alive}`);
+          let result = saved && alive ? await appendSession(ctx, { sessionId: saved, prompt }) : null;
           if (!result || !result.ok) {
             if (saved) {
-              const why = result ? result.error : '旧汇报会话已不存在（可能被删了）';
+              const why = result ? result.error : alive ? '未知（未投递）' : '旧汇报会话已不存在（可能被删了）';
+              deliveryLog(env.stateDir, `${game.id}/${run.runId} 复用失败：${why}；改为新建`);
               logger.log(`复用汇报会话失败（${saved}）：${why}；改为新建`);
             }
             result = await openSession(ctx, {
@@ -333,6 +350,9 @@ export function apply(ctx) {
               cwd: env.stateDir,
               prompt,
             });
+            deliveryLog(env.stateDir, `${game.id}/${run.runId} 新建会话 ok=${result.ok} id=${result.sessionId || ''} err=${result.error || ''}`);
+          } else {
+            deliveryLog(env.stateDir, `${game.id}/${run.runId} 已追加到 ${result.sessionId}`);
           }
           if (result.ok) {
             if (result.sessionId !== saved) {
@@ -342,9 +362,11 @@ export function apply(ctx) {
             }
           } else {
             logger.log(`汇报会话创建失败：${result.error}`);
+            deliveryLog(env.stateDir, `${game.id}/${run.runId} 汇报会话创建失败：${result.error}`);
           }
         } catch (error) {
           logger.log(`汇报会话异常：${String((error && error.message) || error)}`);
+          deliveryLog(env.stateDir, `${game.id}/${run.runId} 汇报会话异常：${String((error && error.message) || error)}`);
         }
       }
       store.mutate((current) => {
