@@ -6,7 +6,7 @@
     User\OneDragon\*.json 摘要、最新日志尾部、task_progress / ExecutionRecords 列表、
     以及触发前的前置检查结论（阻断项）。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根，默认 C:\software\BetterGI
 .PARAMETER Json
     以 JSON 输出（供 agent / 后续 MCP 消费）
 .PARAMETER TailLines
@@ -18,7 +18,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$Json,
     [switch]$Raw,
     [int]$TailLines = 20

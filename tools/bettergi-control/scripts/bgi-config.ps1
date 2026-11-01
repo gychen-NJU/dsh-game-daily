@@ -29,7 +29,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string[]]$Set,
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$DryRun,
     [switch]$NoBackup
 )

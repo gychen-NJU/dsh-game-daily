@@ -26,7 +26,7 @@ git clone https://github.com/gychen-NJU/bettergi-control "$env:USERPROFILE\.agen
 
 | 依赖 | 说明 |
 | --- | --- |
-| BetterGI 0.66.x | 默认安装路径 `D:\software\BetterGI`，所有脚本都接受 `-Root` 覆盖 |
+| BetterGI 0.66.x | 默认安装路径 `C:\software\BetterGI`，所有脚本都接受 `-Root` 覆盖 |
 | PowerShell 5.1 | 脚本为 UTF-8 **带 BOM**；请不要去掉 BOM（PS 5.1 会按 ANSI 解析中文导致语法错乱） |
 | Windows 10/11 | 依赖计划任务、窗口 API；原神运行需 16:9 且 ≥1920×1080、可见且前台 |
 

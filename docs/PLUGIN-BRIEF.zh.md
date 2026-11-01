@@ -90,7 +90,7 @@
   - 模式：真实执行 / 演练。
   - 开关：错过补跑（开机后补一次）、运行完成后开一个会话汇报结果、前台守护（游戏被抢走时自动拉回）。
   - 提示：真实模式本轮结束后自动关闭游戏；下一款开始前先确保上一款已退出。
-  - 游戏路径（可选）：`D:\software\BetterGI\BetterGI.exe`。
+  - 游戏路径（可选）：`C:\software\BetterGI\BetterGI.exe`。
   - 任务状态：尚未创建计划任务 / 下次运行时间 / 上次结果。
 - 依赖体检：每项一行，左侧 badge（就绪 / 可用但有风险 / 缺失），右侧「让 DSH 修这个」；点下去按钮变「处理中…」；顶部有「重新体检」。
 - 最近运行：列表（运行号、状态、时间），点开是报告弹层（JSON + stdout 尾部）。
@@ -139,7 +139,7 @@
 
 ### 原神（engine = bettergi）
 
-- 依赖：BetterGI（默认 `D:\software\BetterGI`）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（MCP 服务器，29 个工具）。
+- 依赖：BetterGI（默认 `C:\software\BetterGI`）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（MCP 服务器，29 个工具）。
 - 流程：`bgi_doctor` → `bgi_status` → `bgi_focus_game`（还原窗口并置前）→ `bgi_run_one_dragon {config:"日常"}` → `bgi_watch` → `bgi_results`。
 - 一条龙 6 个任务（来自 `User\OneDragon\日常.json` 的 TaskOrder）：
   1. 领取邮件

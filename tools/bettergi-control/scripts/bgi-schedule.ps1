@@ -5,7 +5,7 @@
     回答"明天几点跑 / 昨天跑成没 / 包装器有没有替我清残留"这类问题。
     只读，不启动任何进程。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根，默认 C:\software\BetterGI
 .PARAMETER Runs
     额外回溯最近几次一条龙运行（从日志里扫"一条龙和配置组任务结束"），默认 5 次。
 .PARAMETER Json
@@ -17,7 +17,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [int]$Runs = 5,
     [switch]$Json
 )

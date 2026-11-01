@@ -1,11 +1,11 @@
 ---
 name: bettergi-control
-description: 用自然语言指挥本机 BetterGI（更好的原神）完成自动化：启动原神与截图器、跑「一条龙」日常、跑配置组、采集材料、打秘境、改配置与队伍、查任务进度与失败原因。当用户说"启动原神""跑日常/一条龙""采集 XX 材料""打 XX 秘境""帮我改 BetterGI 配置/队伍/树脂""看看今天任务跑成没/为什么失败"等，或提到 BetterGI、更好的原神、自动秘境、自动采集、自动拾取、自动剧情时使用。本机已安装 0.66.0 于 D:\software\BetterGI，配套指南见工作区 docs\BetterGI-Agent-使用指南.md。
+description: 用自然语言指挥本机 BetterGI（更好的原神）完成自动化：启动原神与截图器、跑「一条龙」日常、跑配置组、采集材料、打秘境、改配置与队伍、查任务进度与失败原因。当用户说"启动原神""跑日常/一条龙""采集 XX 材料""打 XX 秘境""帮我改 BetterGI 配置/队伍/树脂""看看今天任务跑成没/为什么失败"等，或提到 BetterGI、更好的原神、自动秘境、自动采集、自动拾取、自动剧情时使用。本机已安装 0.66.0 于 C:\software\BetterGI，配套指南见工作区 docs\BetterGI-Agent-使用指南.md。
 ---
 
 # BetterGI 指挥台（本机已装好并跑通）
 
-**本机实证**（2026-10-15）：BetterGI **0.66.0** 免安装版装在 `D:\software\BetterGI`；一条龙配置 `日常`（领取邮件 → 合成树脂 → 领取每日奖励 → 自动秘境）已跑通（19:57–20:07 那次完整成功：合成树脂 ✓、秘境命中「万能战斗策略（萌新推荐）」刷 4 轮 ✓、每日奖励「今日奖励已领取」✓）；Windows 计划任务 `BetterGI 日常一条龙` 每天 **08:00** 自动跑，DSH 每天 **08:40** 汇报结果。
+**本机实证**（2026-10-15）：BetterGI **0.66.0** 免安装版装在 `C:\software\BetterGI`；一条龙配置 `日常`（领取邮件 → 合成树脂 → 领取每日奖励 → 自动秘境）已跑通（19:57–20:07 那次完整成功：合成树脂 ✓、秘境命中「万能战斗策略（萌新推荐）」刷 4 轮 ✓、每日奖励「今日奖励已领取」✓）；Windows 计划任务 `BetterGI 日常一条龙` 每天 **08:00** 自动跑，DSH 每天 **08:40** 汇报结果。
 本 skill 的 16 个脚本均已实机验证：语法/BOM（UTF-8 带 BOM，PS 5.1）、只读路径全部退出码 0、`-DryRun` 不产生副作用、验收前后 `User\config.json` 与 `User\OneDragon\日常.json` 哈希不变。
 **完整文档**（5266 行，第 10 章配方 / 第 11 章排障 / 第 12 章速查）：`<dsh-betterGI 工作区>\docs\BetterGI-Agent-使用指南.md`
 
@@ -63,7 +63,7 @@ description: 用自然语言指挥本机 BetterGI（更好的原神）完成自�
 | --- | --- |
 | **开跑前体检** | `bgi_doctor`（安装/配置、窗口就绪、显示与 DPI、资源分辨率、路线资产、**配置组→文件完整性（含 JS 的 manifest）**、**资产版本门禁**、**JS 图片资产魔数**、一条龙、闭环件） |
 | **一句话采集（一步到位）** | `bgi_collect_now {material:"星螺", confirm:true}`（先 `dry_run:true` 预览；会准备路线+窗口、触发、轮询到"真的开始跑了"） |
-| **免 UAC 触发**（可选一次性安装） | `D:\software\BetterGI\_setup_ondemand_task.ps1`（装最高权限「BetterGI 按需执行」任务）→ 之后 `bgi-run.ps1` 自动走"写 `_run_request.json` + `Start-ScheduledTask`"，**不再弹 UAC**；未安装时它会明确提示"会弹一次 UAC" |
+| **免 UAC 触发**（可选一次性安装） | `C:\software\BetterGI\_setup_ondemand_task.ps1`（装最高权限「BetterGI 按需执行」任务）→ 之后 `bgi-run.ps1` 自动走"写 `_run_request.json` + `Start-ScheduledTask`"，**不再弹 UAC**；未安装时它会明确提示"会弹一次 UAC" |
 | **确认真的跑起来了** | `bgi_wait_milestone {milestone:"domain_entered"}`（capturer_ready / group_started / script_finished / finished / any_error…） |
 | **查"为什么失败"** | `bgi_log_search {levels:["ERR"]}` / `{pattern:"未匹配到任何战斗脚本", task:"自动秘境"}`（条件之间是 AND） |
 | **查"跑成没、采了多少"** | `bgi_results`（每条路线成败+耗时+失败清单；`{material:"星螺"}` 只看某材料） |
@@ -172,6 +172,6 @@ pwsh -File $S\bgi-watch.ps1 -Mode groups -TimeoutMinutes 60  # 观察判定
 
 ## §7 版本自检（长期维护用）
 
-1. `(Get-Item 'D:\software\BetterGI\BetterGI.exe').VersionInfo.ProductVersion` 应为 `0.66.x`。
+1. `(Get-Item 'C:\software\BetterGI\BetterGI.exe').VersionInfo.ProductVersion` 应为 `0.66.x`。
 2. `User\config.json` 顶层键与本 skill 提到的键做差集；出现未知键或缺失键 → 先复核本 skill 与指南。
 3. 任一处不符：先跑 `bgi-status.ps1` 与 `bgi-strategy.ps1 -List` 看结构是否变化，再决定是否更新脚本，不要凭猜改配置。

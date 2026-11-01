@@ -7,7 +7,7 @@
               指令按 | 与顶层 , 切分；方法名对照 Method.cs 白名单。
       · 挑选（SelectCombatScript）：命中当前队伍人数最多者优先；同分时角色表更短者优先；再同分保留先遇到的。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根，默认 C:\software\BetterGI
 .PARAMETER List
     列出 User\AutoFight 下所有策略及其角色表
 .PARAMETER Simulate
@@ -17,14 +17,14 @@
 .EXAMPLE
     pwsh -File bgi-strategy.ps1 -List
     pwsh -File bgi-strategy.ps1 -Simulate '莉奈娅,哥伦比娅,千织,兹白'
-    pwsh -File bgi-strategy.ps1 -Validate 'D:\software\BetterGI\User\AutoFight\兹白月结晶.txt'
+    pwsh -File bgi-strategy.ps1 -Validate 'C:\software\BetterGI\User\AutoFight\兹白月结晶.txt'
 .NOTES
     退出码：0=正常/校验通过；1=校验发现问题或未匹配到策略；2=参数或路径问题。
     UTF-8 带 BOM 保存（Windows PowerShell 5.1）。
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = 'C:\software\BetterGI',
     [switch]$List,
     [string]$Simulate = '',
     [string]$Validate = '',

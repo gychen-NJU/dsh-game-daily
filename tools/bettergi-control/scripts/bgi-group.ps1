@@ -33,7 +33,7 @@ param(
     [switch]$Add,
     [switch]$List,
     [switch]$DryRun,
-    [string]$Root = 'D:\software\BetterGI'
+    [string]$Root = 'C:\software\BetterGI'
 )
 
 $ErrorActionPreference = 'Stop'
