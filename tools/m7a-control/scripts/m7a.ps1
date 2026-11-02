@@ -264,108 +264,6 @@ function Invoke-M7aProcess {
     return $result
 }
 
-# Read a text file that another process may still be writing (task output redirect).
-function Read-TextFileShared {
-    param([string]$File)
-    if (-not $File) { return '' }
-    if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { return '' }
-    try {
-        $fs = [System.IO.File]::Open($File, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-        try {
-            $sr = New-Object System.IO.StreamReader($fs, (New-Object System.Text.UTF8Encoding($false)))
-            $text = $sr.ReadToEnd()
-            $sr.Close()
-            return $text
-        } finally {
-            try { $fs.Close() } catch { }
-        }
-    } catch { return '' }
-}
-
-# Run m7a.exe with stdout/stderr redirected to temp FILES instead of pipes.
-# Why files + Start-Process: PowerShell 5.1 keeps a task call blocked while an async
-# pipe read is pending on a live child, and a cmd.exe wrapper would inherit our stdout
-# handle, so the caller's own stream would never see EOF. Start-Process with file
-# redirection gives the child fresh file handles, so the wait can time out, leave the
-# task running, and still return promptly with the partial output.
-function Invoke-M7aTaskToFile {
-    param(
-        [Parameter(Mandatory = $true)][string]$Exe,
-        [string[]]$ArgList = @(),
-        [int]$TimeoutSeconds = 3600,
-        [string]$WorkingDir = ''
-    )
-    $result = [ordered]@{
-        ok       = $false
-        code     = $null
-        timedOut = $false
-        pid      = 0
-        stdout   = ''
-        stderr   = ''
-        error    = ''
-    }
-    if (-not (Test-Path -LiteralPath $Exe -PathType Leaf)) {
-        $result.error = 'M7A_EXE_MISSING'
-        return $result
-    }
-    $dir = Join-Path $env:TEMP ('m7a-task-' + [guid]::NewGuid().ToString('N'))
-    try { New-Item -ItemType Directory -Force -Path $dir | Out-Null } catch { }
-    $outFile = Join-Path $dir 'stdout.txt'
-    $errFile = Join-Path $dir 'stderr.txt'
-    $argStr = ConvertTo-ArgumentString $ArgList
-
-    # Child inherits this process env; force UTF-8 so the redirected text stays UTF-8.
-    $oldIo = $env:PYTHONIOENCODING
-    $oldUtf8 = $env:PYTHONUTF8
-    $env:PYTHONIOENCODING = 'utf-8'
-    $env:PYTHONUTF8 = '1'
-    $proc = $null
-    try {
-        $startArgs = @{
-            FilePath               = $Exe
-            ArgumentList           = $argStr
-            RedirectStandardOutput = $outFile
-            RedirectStandardError  = $errFile
-            NoNewWindow            = $true
-            PassThru               = $true
-        }
-        if ($WorkingDir) { $startArgs['WorkingDirectory'] = $WorkingDir }
-        $proc = Start-Process @startArgs
-    } catch {
-        $msg = $_.Exception.Message
-        if ($msg -match 'elevation|740') { $result.error = 'M7A_ELEVATION_REQUIRED' }
-        else { $result.error = 'M7A_SPAWN_FAILED: ' + $msg }
-        return $result
-    } finally {
-        $env:PYTHONIOENCODING = $oldIo
-        $env:PYTHONUTF8 = $oldUtf8
-    }
-    try { $result.pid = $proc.Id } catch { }
-    # Touch the native handle right away: PowerShell's Start-Process object drops its
-    # process handle when the spawn helper returns, after which ExitCode reads as $null.
-    # Opening .Handle explicitly keeps the handle alive so ExitCode works after exit.
-    try { $null = $proc.Handle } catch { }
-
-    $waitMs = [Math]::Max(1000, $TimeoutSeconds * 1000)
-    $finished = $false
-    try { $finished = $proc.WaitForExit($waitMs) } catch { $finished = $false }
-
-    if (-not $finished) {
-        $result.timedOut = $true
-        # Leave the task alive on purpose; report its pid so the caller can control it.
-        $result.stdout = Read-TextFileShared $outFile
-        $result.stderr = Read-TextFileShared $errFile
-        return $result
-    }
-
-    try { $result.code = $proc.ExitCode } catch { }
-    $result.stdout = Read-TextFileShared $outFile
-    $result.stderr = Read-TextFileShared $errFile
-    try { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue } catch { }
-    $result.ok = ($result.code -eq 0 -and -not $result.error)
-    return $result
-}
-
 function Get-ExitMeaning {
     param($Code)
     $map = @{
@@ -904,7 +802,13 @@ function Invoke-Main {
                 $listProc = Invoke-M7aProcess -Exe $info.exe -ArgList @('--list', '--json') -TimeoutSeconds 30 -WorkingDir $info.root -KillOnTimeout
                 $listData = Get-JsonFromText $listProc.stdout
                 if ($null -eq $listData) { $listData = Get-JsonFromText $listProc.stderr }
-                $out.tasks = $listData
+                # Flatten the common {"tasks":[...]} envelope so callers can read $out.tasks[0].id.
+                $taskArray = $listData
+                if ($null -ne $listData) {
+                    $tasksProp = $listData.PSObject.Properties['tasks']
+                    if ($tasksProp -and $null -ne $tasksProp.Value) { $taskArray = @($tasksProp.Value) }
+                }
+                $out.tasks = $taskArray
                 $out.tasksExitCode = $listProc.code
                 if ($null -eq $listData) { $out.tasksError = 'M7A_LIST_UNPARSABLE' }
             }
@@ -1046,7 +950,7 @@ function Invoke-Main {
                 root      = $info.root
                 exitCode  = $proc.code
                 timedOut  = $proc.timedOut
-                lineCount = $allLines.Count
+                count     = $allLines.Count
                 lines     = $tailLines
             }
             if ($proc.error) {
