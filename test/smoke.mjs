@@ -9,7 +9,7 @@ import { probeDependencies, resolveDsh } from '../lib/deps.mjs';
 import { buildRunPrompt, buildInstallPrompt, buildReportPrompt } from '../lib/prompt.mjs';
 import { newRunId, summaryOf, listRuns, writeJson, metaPathOf, reportPathOf } from '../lib/report.mjs';
 import { queryTasks, taskStatus, refreshTaskInfo, readTaskDefinition, computeNextRun } from '../lib/tasks.mjs';
-import { guardScriptPath, guardStatus, aliveFromError, readRunner } from '../lib/runner.mjs';
+import { guardScriptPath, guardStatus, aliveFromError, readRunner, ensureOverlay } from '../lib/runner.mjs';
 import { resolveBettergiMcp, vendorPath, bundledPath } from '../lib/bettergi-mcp.mjs';
 import { SKILL_REPOS, inspectSkill, skillInstallPath, installSkill, bundledSkillPath, installSkillGroup, runCoverage } from '../lib/skills.mjs';
 import { registerBettergiMcp, hasBettergiMcpRow, bettergiMcpPatchPath } from '../lib/mcp-register.mjs';
@@ -507,7 +507,29 @@ check('三月七小助手（m7a）：安装目录识别与 JSON 容错', () => {
   fs.rmSync(tmp, { recursive: true, force: true });
   return `ok/legacy/empty 三态正确 · extractJson 中文 ok · 默认 ${DEFAULT_M7A_TASK}`;
 });
-
+check('三月七小助手（m7a）：overlay / prompt 对字符串 game id 也生效', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-overlay-'));
+  const ov = ensureOverlay({ stateDir: dir, game: 'sr' });
+  if (!ov || ov.ok !== true || ov.hasMcp !== true) {
+    throw new Error(`sr 的 overlay 没注入 m7a MCP：${JSON.stringify(ov)}`);
+  }
+  const prompt = buildRunPrompt({
+    game: 'sr',
+    mode: 'real',
+    runId: 't-1',
+    runDir: dir,
+    reportPath: path.join(dir, 'report.json'),
+    skillsRoot: 'C:\\skills',
+    stateDir: dir,
+  });
+  if (!prompt.includes('三月七小助手')) throw new Error('字符串 game id 的 prompt 没走 M7A 分支');
+  if (!/m7a_status|m7a_run/.test(prompt)) throw new Error('prompt 里没有 m7a 工具说明');
+  let threw = false;
+  try { buildRunPrompt({ game: null }); } catch { threw = true; }
+  if (!threw) throw new Error('缺 game 时 buildRunPrompt 应当直接报错');
+  const bad = ensureOverlay({ stateDir: dir, game: null });
+  if (!bad || bad.ok !== false) throw new Error('缺 game 时 ensureOverlay 应当返回 ok:false');
+});
     for (const item of results) console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}  ${item.detail}`);
     exitCode = results.some((item) => !item.ok) ? 1 : 0;
     console.log(JSON.stringify({ ok: exitCode === 0, total: results.length, failed: results.filter((r) => !r.ok).length }));
