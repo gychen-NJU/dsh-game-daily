@@ -160,7 +160,8 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 插件可以直接用 GitHub 源码安装；如果想出现在插件市场的下载排行里、并让 `dsh plugin add dsh-game-daily` 走 npm，可以发布到 npm：
 
 - 工作流：`.github/workflows/publish.yml` —— 建 Release（Tag `vX.Y.Z`）自动发布；手动触发默认只做 dry-run。
-- 一次性准备：仓库 **Settings → Secrets and variables → Actions** 添加 `NPM_TOKEN`（npmjs.com 的 Automation token）。若改用 npm 的 Trusted Publishing（OIDC），可以不加 secret，工作流里的 `id-token: write` 会提供来源证明。
+- 一次性准备：仓库 **Settings → Secrets and variables → Actions** 添加 `NPM_TOKEN` —— 在 npmjs.com 建 **Granular Access Token** 时权限必须选 **Read and write**，**不要**选 `Read and write (stage only)`（stage-only 只能进暂存队列，`npm publish` 会报 `E_STAGE_REQUIRED`）；Packages 选 All packages 并勾 Bypass 2FA。若改用 npm 的 Trusted Publishing（OIDC），可以不加 secret，工作流里的 `id-token: write` 会提供来源证明。
+- 已发布：`dsh-game-daily@0.3.1`（https://www.npmjs.com/package/dsh-game-daily ，带 provenance 证明）。`npm i dsh-game-daily` 或 `dsh plugin add dsh-game-daily` 即可。
 - 发版：`npm version patch`（或 minor / major）→ `git push --follow-tags` → 在 GitHub 用同一个 Tag 建 Release。
 - 工作流会先跑 `node test/smoke.mjs` 和 `npm publish --dry-run`，再 `npm publish --provenance`；`prepublishOnly` 也会跑一遍 smoke，坏包不会发出去。
 - 想让条目出现在 [插件市场目录](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)，往该仓库提一个 `data/plugins/<owner>__<repo>.yml` 的 PR 即可（本插件已据此提交）。
