@@ -37,7 +37,7 @@ The agent will clone, install the bundle, verify activation, and use the built-i
 - **Game tabs**: Genshin Impact / Honkai Impact 3rd / Honkai: Star Rail / Zenless Zone Zero (driven by ZenlessZoneZero-OneDragon).
 - **Daily-agent switch (off by default)**: schedule and run settings appear only after you turn it on. Edits stay in a local draft; nothing is written and no task is (re)created until you press **Save & Apply**.
 - **Schedule**: daily time, run days (every day / specific weekdays), timeout, mode (real run / dry-run diagnosis only), catch-up on missed runs, append the result to that game's single reused report session (created once, then reused; recreated if deleted), game path (Genshin can point at `BetterGI.exe`). Timeout means how long one run may take (5–180 min; defaults: Genshin 150, HI3/Star Rail 45). The scheduler's execution time limit is set to timeout + 10 min, and the watchdog spends the 5-minute margin on finalizing the run itself.
-- **Dependency check**: dsh CLI, DSH version, headless runner (including the credentials patch), computer-use plugin, skill files, coordinate calibration, elevation helper, BetterGI, the bettergi-control skill, the bettergi-mcp script, and the bettergi MCP registration. Every missing item gets a **"Let DSH fix it"** button: one-click items (install the bundled bettergi-control skill, register the MCP row) run directly and the button turns into **Working…**; multi-step or privileged repairs open a new DSH session with the repair steps (including backup/read-back requirements) and switch the UI to it.
+- **Dependency check**: dsh CLI, DSH version, headless runner (including the credentials patch), computer-use plugin, skill files, coordinate calibration, elevation helper, BetterGI, the bettergi-control skill, the bettergi-mcp script, the bettergi MCP registration; for HSR it also checks March7thAssistant (`m7a`), the bundled `m7a-control` skill and the bundled `m7a-mcp`. Every missing item gets a **"Let DSH fix it"** button: one-click items (install the bundled bettergi-control skill, register the MCP row) run directly and the button turns into **Working…**; multi-step or privileged repairs open a new DSH session with the repair steps (including backup/read-back requirements) and switch the UI to it.
 - **Run once / Stop / Disable all**: "Run once" uses the saved configuration; "Stop" kills that game's headless run; "Disable all" removes every scheduled task.
 - **Recent runs**: reads `report.json` (status, mode, steps, evidence, conclusion) plus the tail of stdout.
 
@@ -57,7 +57,7 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
                                   dsh --profile headless --patch automation/headless-overlay.yml "<prompt>"
                                                                 │
                                                                 ▼
-                             runs the skills (Genshin → bettergi-control; HI/SR → game-daily-*)
+                             runs the engine (Genshin → BetterGI; HI → game-daily-hi; HSR → March7thAssistant)
                                                                 │
                                                                 ▼
                              <stateDir>/runs/<game>/<runId>/{meta.json,report.json,stdout.log,screens/}
@@ -68,7 +68,7 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
 
 - Every step of report delivery (`saved=` / `alive=` / `appended to …` or `reuse failed: <reason>; creating a new one`) is appended to `<stateDir>/automation/report.log`. The host logger is not persisted, so that file is the one place to look when asking "why was a new session created again?".
 
-- On the headless side, `--patch` layers an overlay that injects the bettergi MCP (needed by Genshin), and `DSH_PERMISSION_MODE=danger-full-access` makes the run unattended. HI/SR use the elevation helper (`scripts/run-step.mjs --ps`) when computer-use is unavailable.
+- On the headless side, `--patch` layers an overlay that injects the bettergi MCP (needed by Genshin), and `DSH_PERMISSION_MODE=danger-full-access` makes the run unattended. HI uses the elevation helper (`scripts/run-step.mjs --ps`) when computer-use is unavailable. HSR is driven by March7thAssistant (M7A): the agent only supervises, intervenes on failures and reports.
 - The report is the only source of truth: `report.json`'s `status` is `success / partial / failed / timeout`; the plugin never guesses from process exit codes.
 - **Watchdog**: `run-headless.mjs` stops the headless run at "timeout − 5 min", writes a fallback `report.json` (`status=timeout`) and exits, so the OS time limit never kills the tree with nothing left behind.
 - **Fallback reconcile**: if even that report is missing (manual kill or crash), reconcile records a `failed` run and notifies after the process is gone and a 3-minute grace period has passed — no more silent runs.
@@ -148,7 +148,8 @@ The settings panel opens with a version bar that **reads the latest `package.jso
 
 - Genshin: BetterGI (default `D:\software\BetterGI`, editable in the panel) + **bundled** bettergi-control skill and bettergi-mcp (above). BetterGI has no HTTP API — it can only be driven by command line / script groups.
 - Zenless Zone Zero: ZenlessZoneZero-OneDragon (default `D:\software\ZenlessZoneZero-OneDragon`, auto-installable when missing) + an elevated one-dragon backend. The MCP server and skill ship with this plugin; the game itself still has to be installed.
-- HI / SR: the `game-daily` skill family + the elevation helper (switch to computer-use per the skill docs when synthetic clicks are filtered).
+- HI: the `game-daily` skill family + the elevation helper (switch to computer-use per the skill docs when synthetic clicks are filtered).
+- HSR: March7thAssistant (M7A) with the bundled `tools/m7a-mcp` and `tools/m7a-control`; the dependency check reports `m7a` / `m7a-skill` / `m7a-mcp` and the fix button opens an agent session that installs and configures it. Trailblaze power is reserved for in-game Build Targets (ascension/trace materials, relics and planar ornaments): `build_target_enable=true`, with both `instance_type` and `activity_gardenofplenty_instance_type` set to "Calyx (Crimson)"; Golden credit/EXP calyx is never farmed unless the user explicitly asks.
 - There is **no background/AFK mode**: Genshin must be visible and in the foreground at 16:9 ≥ 1920×1080; a locked screen will fail.
 - Registering scheduled tasks and running BetterGI require one UAC confirmation; the panel says so next to the button.
 - Account risk depends on how you use it: the official terms list third-party software / simulated input as grounds for a ban. Use it discreetly.

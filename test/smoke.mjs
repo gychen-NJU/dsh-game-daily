@@ -17,6 +17,7 @@ import { GAME_PROCESSES, runningGames, closeGame } from '../lib/gameproc.mjs';
 import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensureZzzConfigs, detectZzzGamePath, inspectZzzInstallRoot } from '../lib/zzz.mjs';
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
 import { appendSession } from '../lib/install.mjs';
+import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
 
 const results = [];
 // 后台刷新一次任务信息，验证异步 PowerShell 路径（真实环境里这一步由请求触发、不阻塞 UI）。
@@ -441,6 +442,70 @@ Promise.resolve()
       if (empty.ok !== false) throw new Error('没有 sessionId 时应返回 ok:false');
       return 'reuse ok';
     });
+check('三月七小助手（m7a）：注册 / 体检 / 提示词', () => {
+  const sr = gameById('sr');
+  if (sr.engine !== 'm7a') throw new Error(`星铁引擎应为 m7a，实际 ${sr.engine}`);
+  if (sr.skillModule !== 'm7a-control') throw new Error(`星铁 skillModule 应为 m7a-control，实际 ${sr.skillModule}`);
+  const deps = probeDependencies(['sr'], { stateDir: os.tmpdir() });
+  const ids = deps.checks.map((c) => c.id);
+  for (const id of ['m7a', 'm7a-skill', 'm7a-mcp']) {
+    if (!ids.includes(id)) throw new Error(`星铁体检缺 ${id}（实际 ${ids.join(',')}）`);
+  }
+  const m7a = deps.checks.find((c) => c.id === 'm7a');
+  if (m7a.status === 'missing') {
+    if (!m7a.blocker) throw new Error('未安装 M7A 应标 blocker');
+    if (!m7a.fix || m7a.fix.action !== 'install-m7a') throw new Error(`未安装时应给 install-m7a，实际 ${JSON.stringify(m7a.fix)}`);
+  } else if (m7a.status === 'warn') {
+    // warn 分两种：可修的（首次未确认/路径失效）必须带 fix；正在跑（active_run）属于正常值守状态，不需要 fix。
+    if (m7a.fix) {
+      if (!['install-m7a', 'setup-m7a'].includes(m7a.fix.action)) {
+        throw new Error(`warn 的 fix 只能是 install-m7a/setup-m7a，实际 ${JSON.stringify(m7a.fix)}`);
+      }
+    } else if (!/运行中|正在运行|active_run|正在跑/.test(String(m7a.detail || ''))) {
+      throw new Error(`warn 没有 fix 时必须在 detail 里说明原因（运行中），实际 ${JSON.stringify(m7a.detail)}`);
+    }
+  }
+  const prompt = buildRunPrompt({ game: sr, mode: 'real', runId: 't', runDir: 'X:/r', reportPath: 'X:/r/report.json', skillsRoot: 'X:/s', stateDir: 'X:/st' });
+  if (!prompt.includes('三月七小助手')) throw new Error('星铁 prompt 没提三月七小助手');
+  if (prompt.includes('先用 skill 工具加载技能')) throw new Error('星铁 prompt 不该再要求外部技能');
+  if (!prompt.includes('--after-finish None')) throw new Error('星铁 prompt 缺 --after-finish None 约束');
+  if (!prompt.includes('培养目标') || !prompt.includes('拟造花萼（赤）')) {
+    throw new Error('星铁 prompt 没写清体力用途口径（只刷培养目标、拟造花萼（赤））');
+  }
+  const installHint = buildInstallPrompt({ action: 'install-m7a', gameId: 'sr' });
+  if (!installHint.includes('March7thAssistant')) throw new Error('install-m7a 的修复线索没写清楚');
+  return `${m7a.status}${m7a.fix ? '/' + m7a.fix.action : ''} · ${ids.filter((i) => i.startsWith('m7a')).join(',')}`;
+});
+
+check('三月七小助手（m7a）：安装目录识别与 JSON 容错', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'm7a-'));
+  const okDir = path.join(tmp, 'full');
+  fs.mkdirSync(okDir, { recursive: true });
+  fs.writeFileSync(path.join(okDir, 'm7a.exe'), '');
+  fs.writeFileSync(path.join(okDir, 'config.yaml'), 'game_path: D:/StarRail\n');
+  const legacyDir = path.join(tmp, 'legacy');
+  fs.mkdirSync(legacyDir, { recursive: true });
+  fs.writeFileSync(path.join(legacyDir, 'March7th Assistant.exe'), '');
+  const emptyDir = path.join(tmp, 'empty');
+  fs.mkdirSync(emptyDir, { recursive: true });
+
+  const ok = inspectM7aInstallRoot(okDir);
+  if (!ok.hasExe || !ok.looksLikeRoot) throw new Error(`有 m7a.exe 应判为安装目录：${JSON.stringify(ok)}`);
+  const legacy = inspectM7aInstallRoot(legacyDir);
+  if (legacy.hasExe || !legacy.legacyOnly) throw new Error(`只有旧版 exe 应判 legacyOnly：${JSON.stringify(legacy)}`);
+  const none = inspectM7aInstallRoot(emptyDir);
+  if (none.hasExe || none.looksLikeRoot) throw new Error('空目录不该判为安装目录');
+  const parsed = extractJson('log line\n{"status":"ok","reason":"\\u672a\\u5f00\\u59cb"}\ntail');
+  if (!parsed || parsed.status !== 'ok' || !parsed.reason.includes('未')) throw new Error(`extractJson 没解析出中文：${JSON.stringify(parsed)}`);
+  const facts = m7aFacts();
+  const lines = typeof facts === 'string' ? facts : (facts.lines || []).join('\n');
+  if (!lines.includes('三月七小助手')) throw new Error('m7aFacts 文案缺主体');
+  if (exitMeaning(3) === exitMeaning(0)) throw new Error('exitMeaning 没有区分 0/3');
+  if (DEFAULT_M7A_TASK !== 'main') throw new Error(`默认任务应为 main，实际 ${DEFAULT_M7A_TASK}`);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return `ok/legacy/empty 三态正确 · extractJson 中文 ok · 默认 ${DEFAULT_M7A_TASK}`;
+});
+
     for (const item of results) console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}  ${item.detail}`);
     exitCode = results.some((item) => !item.ok) ? 1 : 0;
     console.log(JSON.stringify({ ok: exitCode === 0, total: results.length, failed: results.filter((r) => !r.ok).length }));

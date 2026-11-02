@@ -28,6 +28,7 @@ import { installSkill, installSkillGroup, runCoverage } from './lib/skills.mjs';
 import { registerBettergiMcp } from './lib/mcp-register.mjs';
 import { resolveNodeExe } from './lib/nodeexe.mjs';
 import { ensureZzzServer, installZzzOneDragon } from './lib/zzz.mjs';
+import { m7aFacts, m7aInstallInfo } from './lib/m7a.mjs';
 import { checkForUpdate, applyUpdate, readLocalVersion } from './lib/update.mjs';
 
 export const name = 'game-daily';
@@ -647,15 +648,32 @@ export function apply(ctx) {
         };
       }
       const gameId = GAME_IDS.includes(body.game) ? body.game : '';
-      const prompt = body.prompt || buildInstallPrompt({
+      let prompt = body.prompt || buildInstallPrompt({
         action: body.action || '',
         gameId,
         checkId: body.checkId || '',
         checkDetail: body.checkDetail || '',
       });
-      const title = body.title || '游戏日常 · 依赖修复';
+      // 三月七小助手：安装 / 首次配置都交给 Agent，附上本机探测到的事实与约束。
+      if (body.action === 'install-m7a' || body.action === 'setup-m7a') {
+        const install = m7aInstallInfo();
+        let facts = '';
+        try {
+          const f = m7aFacts();
+          facts = typeof f === 'string' ? f : (f && Array.isArray(f.lines) ? f.lines.join('\n') : '');
+        } catch (err) {
+          facts = `m7aFacts 探测失败：${err && err.message ? err.message : err}`;
+        }
+        prompt +=
+          '\n\n【本机三月七小助手（M7A）探测结果】\n' +
+          `已安装：${install.ok ? `是（${install.root}）` : '否'}${install.legacyOnly ? `；只找到旧版：${install.legacyRoot}` : ''}` +
+          (install.searched && install.searched.length ? `\n搜索过：${install.searched.join('、')}` : '') +
+          (facts ? `\n${facts}` : '') +
+          '\n\n硬约束：① 绝不要替用户确认免责声明（first_run_completed 只能用户本人在 March7th Launcher.exe 里点）；② 安装目录不要放 C:\\Program Files；③ 改 config.yaml 前先备份，改完用 `m7a.exe --status --json` 回读验证；④ 装完把面板体检截图/命令输出贴出来。';
+      }
+      const title = body.title || (body.action === 'install-m7a' || body.action === 'setup-m7a' ? '游戏日常 · 三月七小助手' : '游戏日常 · 依赖修复');
       const result = await openSession(ctx, { prompt, title, cwd: env.stateDir });
-      return { ok: result.ok === true, sessionId: result.sessionId || '', error: result.error };
+      return { ok: result.ok === true, sessionId: result.sessionId || '', error: result.error, action: body.action || '' };
     },
 
     'GET /runs': async (req, url) => {

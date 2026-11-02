@@ -37,7 +37,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 - **顶部游戏页签**：原神 / 崩坏3 / 崩坏：星穹铁道 / 绝区零（走 ZenlessZoneZero-OneDragon「一条龙」）。
 - **代理日常开关（默认关）**：打开后才出现排班与执行设置；改动先落在本地草稿，点「保存并应用」才写盘并重建计划任务。
 - **排班**：每天时间、执行日（每天 / 指定星期）、超时、模式（真实执行 / 演练只诊断）、错过补跑、跑完开一个会话汇报、游戏路径（原神可指定 `BetterGI.exe`）。超时指「一轮最多跑多久」（5–180 分钟，默认原神 150、崩3/星铁 45）；计划任务的系统执行时限会自动设为「超时 + 10 分钟」，而那 5 分钟的余量留给插件自己收尾。
-- **依赖体检**：dsh CLI、DSH 版本、headless 运行器（含 credentials 补丁）、computer-use 插件、技能文件、坐标校准、提权助手、BetterGI、bettergi-control 技能、bettergi-mcp 脚本、bettergi MCP 注册；选到绝区零时另加「一条龙安装 / 一条龙后端」。缺任何一项都给出「让 DSH 修这个」按钮：能自动做的（下载 bettergi-mcp、安装 bettergi-control、注册 MCP 配置、启动一条龙后端）点一下直接做，按钮会变成「处理中…」；需要多步操作或权限的才新开一个 DSH 会话，把修复步骤（含备份/回读要求）交给 Harness 执行，并把界面切过去。
+- **依赖体检**：dsh CLI、DSH 版本、headless 运行器（含 credentials 补丁）、computer-use 插件、技能文件、坐标校准、提权助手、BetterGI、bettergi-control 技能、bettergi-mcp 脚本、bettergi MCP 注册；选到绝区零时另加「一条龙安装 / 一条龙后端」；选到崩铁时另加「三月七小助手（M7A）/ m7a-control 技能 / m7a MCP」。缺任何一项都给出「让 DSH 修这个」按钮：能自动做的（下载 bettergi-mcp、安装 bettergi-control、注册 MCP 配置、启动一条龙后端）点一下直接做，按钮会变成「处理中…」；需要多步操作或权限的才新开一个 DSH 会话，把修复步骤（含备份/回读要求）交给 Harness 执行，并把界面切过去。
 - **立即运行一次 / 停止 / 关闭全部代理**：立即运行走「已保存」的配置；停止会杀掉该游戏的 headless 运行进程；关闭全部代理会移除所有计划任务。
 - **最近运行**：读取 `report.json`（状态、模式、步骤、证据、结论）与 stdout 尾部。
 
@@ -57,7 +57,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
                               dsh --profile headless --patch automation/headless-overlay.yml "<prompt>"
                                                             │
                                                             ▼
-                                 按技能执行（原神走 bettergi-control；崩3/星铁走 game-daily-*）
+                                 按引擎执行（原神走 BetterGI；崩3 走 game-daily-hi；崩铁走三月七小助手 M7A）
                                                             │
                                                             ▼
                                   <stateDir>/runs/<game>/<runId>/{meta.json,report.json,stdout.log,screens/}
@@ -68,7 +68,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 
 - 汇报投递的每一步（`saved=` / `alive=` / `已追加到 …` 或 `复用失败：<原因>；改为新建`）都会写进 `<stateDir>/automation/report.log`：Host 的 logger 不落盘，排查「为什么又新建会话」只看这一个文件即可。
 
-- headless 侧通过 `--patch` 叠加 overlay 注入 bettergi MCP（原神需要），并带 `DSH_PERMISSION_MODE=danger-full-access` 实现无人值守；崩3/星铁没有 wincu 时按技能说明用提权助手（`scripts/run-step.mjs --ps`）。
+- headless 侧通过 `--patch` 叠加 overlay 注入对应 MCP（原神 bettergi / 绝区零 zzz-od / 崩铁 m7a），并带 `DSH_PERMISSION_MODE=danger-full-access` 实现无人值守；崩3/星铁没有 wincu 时按技能说明用提权助手（`scripts/run-step.mjs --ps`）。
 - 报告是唯一判定依据：`report.json` 的 `status` 为 `success / partial / failed / timeout`；插件只认这个文件，不猜进程退出码。
 - **看门狗**：`run-headless.mjs` 在「超时 − 5 分钟」到点时会主动停掉 headless、写一份兜底 `report.json`（`status=timeout`）再退出，避免被系统执行时限强杀后什么都不留下。
 - **兜底对账**：如果某轮连兜底报告都没写（比如被手动结束或崩溃），reconcile 会在进程确已退出、且已过 3 分钟宽限后，补一条 `failed` 历史并发通知，不再静默。
@@ -148,7 +148,8 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 ## 依赖与边界
 
 - 原神：BetterGI（默认 `D:\software\BetterGI`，可在面板里改）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（见上）；BetterGI 没有 HTTP API，只能命令行/配置组驱动。
-- 崩坏3 / 星铁：`game-daily` 家族技能 + 提权助手（坐标点击被拦时按技能说明改用 computer-use）。
+- 崩坏3：`game-daily` 家族技能 + 提权助手（坐标点击被拦时按技能说明改用 computer-use）。
+- 崩坏：星穹铁道：三月七小助手（March7thAssistant，默认 `%USERPROFILE%\Games\March7thAssistant`，非默认目录时把路径写进 state 目录的 m7a-root.txt，或设 DSH_GAME_DAILY_M7A_ROOT）+ 插件自带的 `tools/m7a-control` 技能与 `tools/m7a-mcp`；M7A 负责全部画面识别与点击，Agent 只值守、异常介入和汇报。体检缺依赖时点「让 DSH 协助安装」由 Agent 下载、配置并引导用户本人确认免责声明。 体力用途固定为「培养目标」（角色突破/行迹材料、遗器与位面饰品）：`build_target_enable=true`，`instance_type` 与 `activity_gardenofplenty_instance_type` 都是「拟造花萼（赤）」，不打拟造花萼（金）的信用点与角色经验；要改这个口径只能由用户明确要求。
 - 绝区零：ZenlessZoneZero-OneDragon（默认 `D:\software\ZenlessZoneZero-OneDragon`，缺失可一键自动安装）+ 提权的一条龙后端；插件自带 MCP 与技能，游戏本体仍需自己安装。
 - 没有「后台挂机」：原神必须可见且前台、16:9 ≥1920×1080；锁屏会失败。
 - 注册计划任务、跑 BetterGI 需要一次 UAC；面板会在按钮旁说明。

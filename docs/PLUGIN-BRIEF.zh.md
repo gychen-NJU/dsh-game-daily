@@ -27,7 +27,7 @@
 
 | 已有能力 | 能做什么 | 问题 |
 | --- | --- | --- |
-| `game-daily` / `game-daily-hi` / `game-daily-sr` 技能 | 崩坏3、星铁各 14 步日常，在真实游戏界面里点完 | 需要人开一个会话说「帮我清日常」，跑完也没有固定的汇报格式 |
+| `game-daily` / `game-daily-hi` 技能 | 崩坏3 的 14 步日常，在真实游戏界面里点完（星铁已改走三月七小助手，不再用技能点屏幕） | 需要人开一个会话说「帮我清日常」，跑完也没有固定的汇报格式 |
 | **随插件自带**的 `bettergi-control` 技能 + `bettergi-mcp`（29 个工具） | 原神一条龙（领邮件→合成树脂→秘境→每日奖励→尘歌壶→狗粮批发） | 同上，且窗口/分辨率等前置条件要自己查 |
 | Windows 计划任务 | 到点触发 | 只能触发「一条死命令」，不会汇报、不会记录、不会失败重试 |
 
@@ -63,7 +63,7 @@
 3. 点「开启代理」→ 出现排班卡与按钮组。
 4. 往下看「依赖体检」：dsh CLI、DSH 版本、headless 运行器、computer-use、技能、坐标校准、提权助手、BetterGI、bettergi-control 技能、bettergi-mcp 脚本、bettergi-mcp 注册——全绿。
 5. 设时间（例：11:00）→ 点「保存并应用」→ Windows 弹一次 UAC → 计划任务 `game-daily-genshin` 就绪。
-6. 切到崩坏3 / 星铁，各自重复（它们用技能 + 提权助手或 computer-use，不走 BetterGI）。
+6. 切到崩坏3（技能 + 提权助手）与崩铁（三月七小助手：体检项 `m7a` / `m7a-skill` / `m7a-mcp`），各自重复。
 7. 关掉设置页。之后每天到点自动发生。
 
 ### 某一轮自动运行（约 3 分钟，录屏重点）
@@ -122,7 +122,8 @@
                                                │ 加载技能 / MCP
                                                ▼
         原神：bettergi-mcp（29 个 bgi_* 工具）→ BetterGI 一条龙
-        崩3/星铁：game-daily-* 技能 → 提权助手（ps-helper）或 computer-use（wincu）
+        崩3：game-daily-* 技能 → 提权助手（ps-helper）或 computer-use（wincu）
+        崩铁：m7a MCP（m7a.exe CLI）→ 三月七小助手（main = 日常 + 清体力），agent 只值守/介入/汇报
                                                │ 执行
                                                ▼
               runs/<game>/<runId>/{meta.json, report.json, stdout.log}
@@ -179,11 +180,13 @@
 | `automation/tasks.json` | 交给注册脚本的任务定义 |
 | `automation/game-daily-register.ps1` | 提权注册/删除计划任务（自动从插件包复制到状态目录） |
 | `automation/register-result.json` | 注册结果（created / updated / removed / dryRun） |
-| `automation/headless-overlay.yml` | 运行时 overlay（原神注入 bettergi MCP） |
+| `automation/headless-overlay.yml` | 运行时 overlay（原神注入 bettergi MCP，绝区零零 zzz-od MCP，崩铁注入 m7a MCP） |
 | `automation/run-headless.log` | 计划任务侧日志 |
 | `automation/guard-<game>.log` / `.stop` | 前台守护日志与停止旗标 |
 | `tools/bettergi-mcp/bettergi-mcp.mjs` | 随包自带的 MCP 服务器（原神 `bgi_*`，29 个工具） |
 | `tools/bettergi-control/` | 随包自带的 bettergi-control 技能（`SKILL.md` + 15 个脚本） |
+| `tools/m7a-mcp/m7a-mcp.mjs` | 随包自带的 M7A MCP（崩铁，9 个工具，直调 `m7a.exe`） |
+| `tools/m7a-control/` | 随包自带的 M7A 技能（`SKILL.md` + `scripts/m7a.ps1` + references） |
 | `vendor/bettergi-mcp/bettergi-mcp.mjs` | 可选：手动更新/覆盖用的副本（优先级高于自带） |
 | `notifications.log` | 通知记录 |
 
@@ -244,8 +247,11 @@
 | `bettergi-skill` | bettergi-control 技能（`SKILL.md` + ≥10 个脚本） | 阻断（**一键安装自带技能**，不联网） |
 | `bettergi-mcp` | MCP 服务器脚本是否就位 | 警告（**随包自带**，缺失才从 GitHub 补） |
 | `bettergi-mcp-registered` | 当前 profile 是否声明 bettergi MCP | 警告（**一键写入 profile 补丁**，重启生效） |
+| `m7a` | 三月七小助手（`m7a.exe`、首次确认、`game_path`） | 阻断（**点修复后 Agent 协助安装并配置**） |
+| `m7a-skill` | 随包 `tools/m7a-control` 技能 | 警告（安装包不完整时补齐） |
+| `m7a-mcp` | 随包 `tools/m7a-mcp/m7a-mcp.mjs` | 警告（缺失时 agent 退回 m7a.exe 命令行） |
 
-崩3/星铁只检查前 7 项里适用的部分（不查 BetterGI 三项）。
+崩3 只检查适用项（不查 BetterGI 三项）；崩铁另查 `m7a`（三月七小助手安装与首次配置）、`m7a-skill`（随包技能）、`m7a-mcp`（随包 MCP）三项。
 
 ---
 
@@ -254,9 +260,10 @@
 - **不能后台挂机**：原神必须可见且前台；锁屏、最小化、被别的窗口盖住都会失败。前台守护只是「被抢走时拉回来」，不等于可以在后台跑。
 - **分辨率要求（现在能自愈）**：原神需要 16:9 且 ≥1920×1080，本机 2560×1600 独占全屏会被 BetterGI 判为硬阻断（作者第一次 dry-run 报 `partial` 就是这个原因）。2026-10-26 起技能自带 `scripts\bgi-set-resolution.ps1`：先关游戏与 BetterGI → `-Apply`（写 `HKCU\Software\miHoYo\原神` 的 Screenmanager 三键 1920×1080/窗口化 + 补 `HIGHDPIAWARE` DPI 覆盖，自动备份）→ `-StartGame` → `-Verify`（GetClientRect+GetDpiForWindow 实测客户区），exit 0 才算通过；`-Restore` 可回滚。agent 遇到分辨率阻断时应先自愈，而不是让用户自己点设置。
 - **注册计划任务需要一次 UAC**：点「保存并应用」/「关闭全部代理」会弹；之后到点运行不再弹。
-- **首次校准**：崩3/星铁换分辨率、窗口模式或 DPI 后要重新校准坐标。
+- **首次校准**：崩3 换分辨率、窗口模式或 DPI 后要重新定位模板（坐标只作搜索先验）；星铁不需要坐标校准——三月七小助手自己改分辨率（`auto_set_resolution_enable`）与识别画面。
 - **绝区零**：走 ZenlessZoneZero-OneDragon 后端（需管理员权限）；一条龙本体可由插件一键自动安装（默认 D 盘、不会装进 C 盘，首次需下载几百 MB 并 uv sync，按钮会显示「处理中…」），装完记录在 `<stateDir>/zzz-root.txt`。
-- **不覆盖的日常内容**：原神一条龙不含每日委托/地脉花/首领/七圣召唤/采集/深渊；崩3/星铁按技能里的 14 步，不含活动或深渊。
+- **不覆盖的日常内容**：原神一条龙不含每日委托/地脉花/首领/七圣召唤/采集/深渊；崩3 按技能里的 14 步；崩铁按 M7A 的 `main`（日常 + 清体力），活动/深渊同样不含。
+- **体力用途口径**：崩铁清体力只用「培养目标」（角色突破/行迹材料、遗器与位面饰品），对应 `build_target_enable: true`、`instance_type` 与 `activity_gardenofplenty_instance_type` 均为「拟造花萼（赤）」、`echo_of_war_enable: false`；不打拟造花萼（金）的信用点与角色经验（用户长期要求，改口径需用户明确指示）。
 - **账号风险**：官方条款把第三方软件/模拟操作列为封号理由之一；插件自身不做注入、不改游戏文件，但使用方式仍需低调。
 - **改代码要重启桌面端**：插件从 profile 的 junction 读源码，但运行中的 Electron 进程不会热更新。
 
@@ -264,7 +271,7 @@
 
 ## 13. 已完成的验证（可以当作「真做过」的证据）
 
-- 插件版本 `0.3.0`，MIT；`node test/smoke.mjs` → **21/21 PASS**（含状态原子写回读、prompt 构造、dsh 解析、依赖体检、计划任务 XML 解析、前台守护资产 BOM、bettergi-mcp 解析、技能安装 guard、MCP 注册幂等、更新版本比较）。
+- 插件版本 `0.3.0`，MIT；`node test/smoke.mjs` → **25/25 PASS**（含状态原子写回读、prompt 构造、dsh 解析、依赖体检、计划任务 XML 解析、前台守护资产 BOM、bettergi-mcp 解析、技能安装 guard、MCP 注册幂等、更新版本比较）。
 - 真实注册：`/apply` 触发一次 UAC，`register-result.json` 返回 `created`；`Get-ScheduledTask 'game-daily-dev-genshin'` → `Ready`，触发器每天 11:00、`RunLevel Highest`、`WakeToRun`。
 - 端到端：手动 `Start-ScheduledTask` → headless 会话真实执行 → `runs/genshin/20261024-022625/report.json`（`status:"partial"`，12 步 12 条证据，含截图）；任务结束 `LastTaskResult=0`；通知写出「原神 日常：部分完成 …」；`state.json` 记账。
 - 桌面端：`plugin_manager install_bundle` 成功，设置页出现「游戏日常」，客户端 slot `{id:"game-daily", order:35, active:true}`。
@@ -327,6 +334,7 @@
 
 - 不要说「全自动无人值守挂机」——需要游戏可见且前台。
 - 绝区零已接入（一条龙 + 插件自带 zzz-od MCP/skill），一条龙本体可在体检里「让 DSH 修复」一键安装（默认 D 盘，避开 C 盘）。
+- 崩铁已改由三月七小助手（M7A）代理：插件自带 `tools/m7a-mcp` 与 `tools/m7a-control`，体检缺 `m7a` 时点「让 DSH 协助安装」由 Agent 下载/配置并引导用户确认免责声明；Agent 只在值守时介入与汇报。
 - 不要说「包办所有日常」——原神只有一条龙 6 任务。
 - 不要把「演练模式」说成「真的跑」；也不要把 `partial` 说成失败——它是「跑完了但有前置条件没满足」，报告里有明确原因。
 - 不要展示未打码的 UID/账号信息。
