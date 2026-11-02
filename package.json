@@ -59,5 +59,12 @@
         "@deepseek-ai/dsh-client-ui-settings-plugins"
       ]
     }
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs",
+    "prepublishOnly": "node test/smoke.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

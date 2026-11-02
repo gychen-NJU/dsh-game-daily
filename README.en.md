@@ -154,6 +154,15 @@ The settings panel opens with a version bar that **reads the latest `package.jso
 - Registering scheduled tasks and running BetterGI require one UAC confirmation; the panel says so next to the button.
 - Account risk depends on how you use it: the official terms list third-party software / simulated input as grounds for a ban. Use it discreetly.
 
+## Release (npm)
+
+The plugin installs from GitHub source as-is; publish it to npm to get a download figure in the plugin market and to let `dsh plugin add dsh-game-daily` install from the registry:
+
+- Workflow: `.github/workflows/publish.yml` — publishing a GitHub Release (tag `vX.Y.Z`) publishes the package; manual runs default to a dry run.
+- One-time setup: add `NPM_TOKEN` (an npmjs.com automation token) under **Settings → Secrets and variables → Actions**. With npm Trusted Publishing (OIDC) you can drop the secret; `id-token: write` in the workflow provides provenance.
+- Release: `npm version patch` (or minor / major) → `git push --follow-tags` → create a GitHub Release with the same tag.
+- The workflow runs `node test/smoke.mjs` and `npm publish --dry-run` first, then `npm publish --provenance`; `prepublishOnly` runs the smoke test again so a broken package cannot ship.
+- To appear in the [plugin catalog](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin), open a PR adding `data/plugins/<owner>__<repo>.yml` (already done for this plugin).
 ## Development
 
 ```powershell
