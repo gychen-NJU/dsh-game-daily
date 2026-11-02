@@ -149,7 +149,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 
 - 原神：BetterGI（默认 `D:\software\BetterGI`，可在面板里改）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（见上）；BetterGI 没有 HTTP API，只能命令行/配置组驱动。
 - 崩坏3：`game-daily` 家族技能 + 提权助手（坐标点击被拦时按技能说明改用 computer-use）。
-- 崩坏：星穹铁道：三月七小助手（March7thAssistant，默认 `%USERPROFILE%\Games\March7thAssistant`，非默认目录时把路径写进 state 目录的 m7a-root.txt，或设 DSH_GAME_DAILY_M7A_ROOT）+ 插件自带的 `tools/m7a-control` 技能与 `tools/m7a-mcp`；M7A 负责全部画面识别与点击，Agent 只值守、异常介入和汇报。体检缺依赖时点「让 DSH 协助安装」由 Agent 下载、配置并引导用户本人确认免责声明。 体力用途固定为「培养目标」（角色突破/行迹材料、遗器与位面饰品）：`build_target_enable=true`，`instance_type` 与 `activity_gardenofplenty_instance_type` 都是「拟造花萼（赤）」，不打拟造花萼（金）的信用点与角色经验；要改这个口径只能由用户明确要求。
+- 崩坏：星穹铁道：三月七小助手（March7thAssistant，默认 `%USERPROFILE%\Games\March7thAssistant`，非默认目录时把路径写进 state 目录的 m7a-root.txt，或设 DSH_GAME_DAILY_M7A_ROOT）+ 插件自带的 `tools/m7a-control` 技能与 `tools/m7a-mcp`；M7A 负责全部画面识别与点击，Agent 只值守、异常介入和汇报。体检缺依赖时点「让 DSH 协助安装」由 Agent 下载、配置并引导用户本人确认免责声明；**安装目录一定先问你**，默认不装 C 盘（解压后约 1.5GB）。 体力用途固定为「培养目标」（角色突破/行迹材料、遗器与位面饰品）：`build_target_enable=true`，`instance_type` 与 `activity_gardenofplenty_instance_type` 都是「拟造花萼（赤）」，不打拟造花萼（金）的信用点与角色经验；要改这个口径只能由用户明确要求。
 - 绝区零：ZenlessZoneZero-OneDragon（默认 `D:\software\ZenlessZoneZero-OneDragon`，缺失可一键自动安装）+ 提权的一条龙后端；插件自带 MCP 与技能，游戏本体仍需自己安装。
 - 没有「后台挂机」：原神必须可见且前台、16:9 ≥1920×1080；锁屏会失败。
 - 注册计划任务、跑 BetterGI 需要一次 UAC；面板会在按钮旁说明。

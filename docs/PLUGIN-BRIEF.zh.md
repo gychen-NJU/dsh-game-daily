@@ -247,7 +247,7 @@
 | `bettergi-skill` | bettergi-control 技能（`SKILL.md` + ≥10 个脚本） | 阻断（**一键安装自带技能**，不联网） |
 | `bettergi-mcp` | MCP 服务器脚本是否就位 | 警告（**随包自带**，缺失才从 GitHub 补） |
 | `bettergi-mcp-registered` | 当前 profile 是否声明 bettergi MCP | 警告（**一键写入 profile 补丁**，重启生效） |
-| `m7a` | 三月七小助手（`m7a.exe`、首次确认、`game_path`） | 阻断（**点修复后 Agent 协助安装并配置**） |
+| `m7a` | 三月七小助手（`m7a.exe`、首次确认、`game_path`）；**安装目录先问用户、默认不装 C 盘（约 1.5GB）** | 阻断（**点修复后 Agent 协助安装并配置**） |
 | `m7a-skill` | 随包 `tools/m7a-control` 技能 | 警告（安装包不完整时补齐） |
 | `m7a-mcp` | 随包 `tools/m7a-mcp/m7a-mcp.mjs` | 警告（缺失时 agent 退回 m7a.exe 命令行） |
 

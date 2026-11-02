@@ -474,6 +474,8 @@ check('三月七小助手（m7a）：注册 / 体检 / 提示词', () => {
   }
   const installHint = buildInstallPrompt({ action: 'install-m7a', gameId: 'sr' });
   if (!installHint.includes('March7thAssistant')) throw new Error('install-m7a 的修复线索没写清楚');
+  if (!installHint.includes('目录')) throw new Error('install-m7a 的修复线索没有要求先问安装目录');
+  if (!installHint.includes('C 盘')) throw new Error('install-m7a 的修复线索没有说明默认不装 C 盘');
   return `${m7a.status}${m7a.fix ? '/' + m7a.fix.action : ''} · ${ids.filter((i) => i.startsWith('m7a')).join(',')}`;
 });
 

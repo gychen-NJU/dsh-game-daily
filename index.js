@@ -669,7 +669,7 @@ export function apply(ctx) {
           `已安装：${install.ok ? `是（${install.root}）` : '否'}${install.legacyOnly ? `；只找到旧版：${install.legacyRoot}` : ''}` +
           (install.searched && install.searched.length ? `\n搜索过：${install.searched.join('、')}` : '') +
           (facts ? `\n${facts}` : '') +
-          '\n\n硬约束：① 绝不要替用户确认免责声明（first_run_completed 只能用户本人在 March7th Launcher.exe 里点）；② 安装目录不要放 C:\\Program Files；③ 改 config.yaml 前先备份，改完用 `m7a.exe --status --json` 回读验证；④ 装完把面板体检截图/命令输出贴出来。';
+          '\n\n硬约束：① **安装前必须先问用户要装到哪个目录**（默认不要选 C 盘，解压后约 1.5GB；用户没答复前不要下载/解压）；② 绝不要替用户确认免责声明（first_run_completed 只能用户本人在 March7th Launcher.exe 里点）；③ 安装目录不要放 C:\\Program Files；④ 改 config.yaml 前先备份，改完用 `m7a.exe --status --json` 回读验证；⑤ 装完把面板体检截图/命令输出贴出来。';
       }
       const title = body.title || (body.action === 'install-m7a' || body.action === 'setup-m7a' ? '游戏日常 · 三月七小助手' : '游戏日常 · 依赖修复');
       const result = await openSession(ctx, { prompt, title, cwd: env.stateDir });
