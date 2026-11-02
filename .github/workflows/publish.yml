@@ -22,7 +22,9 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    # 本插件运行在 Windows 上（PowerShell、计划任务、游戏进程），冒烟测试里有 Windows-only 断言，
+    # 因此放在 windows runner 上跑，才能真实验证这些路径。
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
