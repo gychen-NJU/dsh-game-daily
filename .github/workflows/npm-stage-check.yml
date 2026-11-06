@@ -1,14 +1,13 @@
 name: npm-stage-check
 
-# 一次性排障/运维入口：查看 staged 发布、用 npm 12 直发、带 HTTP 日志跑一次 publish。
-# 用完可以删掉这个文件，不影响 publish.yml。
+# 一次性排障/运维入口：查看/批准 npm staged 发布。用完可删，不影响 publish.yml。
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'list | approve | publish12'
+        description: 'list | approve | raw'
         type: choice
-        options: [list, approve, publish12]
+        options: [list, approve, raw]
         default: list
       stage_id:
         description: 'approve 时需要：stage id'
@@ -16,33 +15,35 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      - name: Stage list
+      - name: Stage list (with http log)
         if: ${{ inputs.action == 'list' }}
-        run: npx -y npm@12 stage list dsh-game-daily
+        run: npx -y npm@12 stage list dsh-game-daily --loglevel=http
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Raw API probes
+        if: ${{ inputs.action == 'raw' }}
+        run: |
+          for u in "https://registry.npmjs.org/-/stage/dsh-game-daily" "https://registry.npmjs.org/-/v1/stage/dsh-game-daily" "https://registry.npmjs.org/dsh-game-daily/stage"; do
+            code=$(curl -sS -o /tmp/out.json -w "%{http_code}" -H "Authorization: Bearer $NODE_AUTH_TOKEN" "$u" || true)
+            echo "== $u -> $code"
+            head -c 600 /tmp/out.json; echo
+          done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Stage approve
         if: ${{ inputs.action == 'approve' }}
         run: npx -y npm@12 stage approve "${{ inputs.stage_id }}"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish with npm 12 and HTTP logs
-        if: ${{ inputs.action == 'publish12' }}
-        run: npx -y npm@12 publish --provenance --access public --loglevel=http
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
