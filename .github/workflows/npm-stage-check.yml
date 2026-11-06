@@ -1,14 +1,14 @@
 name: npm-stage-check
 
-# 一次性排障/运维入口：查看或批准 npm 的 staged 发布（npm 12 的 stage 子命令）。
+# 一次性排障/运维入口：查看 staged 发布、用 npm 12 直发、带 HTTP 日志跑一次 publish。
 # 用完可以删掉这个文件，不影响 publish.yml。
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'list | approve'
+        description: 'list | approve | publish12'
         type: choice
-        options: [list, approve]
+        options: [list, approve, publish12]
         default: list
       stage_id:
         description: 'approve 时需要：stage id'
@@ -16,17 +16,21 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
       - name: Stage list
+        if: ${{ inputs.action == 'list' }}
         run: npx -y npm@12 stage list dsh-game-daily
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -34,5 +38,11 @@ jobs:
       - name: Stage approve
         if: ${{ inputs.action == 'approve' }}
         run: npx -y npm@12 stage approve "${{ inputs.stage_id }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish with npm 12 and HTTP logs
+        if: ${{ inputs.action == 'publish12' }}
+        run: npx -y npm@12 publish --provenance --access public --loglevel=http
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
