@@ -160,7 +160,7 @@ The plugin installs from GitHub source as-is; publish it to npm to get a downloa
 
 - Workflow: `.github/workflows/publish.yml` — publishing a GitHub Release (tag `vX.Y.Z`) publishes the package; manual runs default to a dry run.
 - One-time setup: add `NPM_TOKEN` under **Settings → Secrets and variables → Actions** — a npm **Granular Access Token** whose permission is **Read and write**, **not** `Read and write (stage only)` (stage-only tokens can only queue a staged release and `npm publish` fails with `E_STAGE_REQUIRED`); pick All packages and tick Bypass 2FA. With npm Trusted Publishing (OIDC) you can drop the secret; `id-token: write` in the workflow provides provenance.
-- Published: dsh-game-daily@0.3.2 (https://www.npmjs.com/package/dsh-game-daily , with a provenance attestation). Install with 
+- Published: dsh-game-daily@0.3.3 (https://www.npmjs.com/package/dsh-game-daily , with a provenance attestation). Install with 
 pm i dsh-game-daily or dsh plugin add dsh-game-daily. Since 0.3.2 the watch prompt carries Honkai Impact 3rd **R10 recovery** (bounce back with OK -> Back -> Main Menu, then rerun the interrupted step from its first action).
 - Release: `npm version patch` (or minor / major) → `git push --follow-tags` → create a GitHub Release with the same tag.
 - The workflow runs `node test/smoke.mjs` and `npm publish --dry-run` first, then `npm publish --provenance`; `prepublishOnly` runs the smoke test again so a broken package cannot ship.
