@@ -37,10 +37,10 @@ jobs:
         run: node test/smoke.mjs
 
       - name: Pack sanity (dry run)
-        run: npm publish --provenance --access public --dry-run
+        run: npm publish --provenance --access public --loglevel=http --dry-run
 
       - name: Publish to npm
         if: ${{ github.event_name == 'release' || inputs.dry_run == false }}
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --loglevel=http
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
