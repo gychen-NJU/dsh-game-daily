@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'list | approve | raw'
+        description: 'list | approve | raw | whoami'
         type: choice
-        options: [list, approve, raw]
+        options: [list, approve, raw, whoami]
         default: list
       stage_id:
         description: 'approve 时需要：stage id'
@@ -25,7 +25,15 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      - name: Stage list (with http log)
+      - name: Whoami + token info
+        if: ${{ inputs.action == 'whoami' }}
+        run: |
+          npx -y npm@12 whoami --registry=https://registry.npmjs.org || true
+          npx -y npm@12 token list --registry=https://registry.npmjs.org --json 2>/dev/null | head -c 2000 || echo "(token list unavailable)"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Stage list
         if: ${{ inputs.action == 'list' }}
         run: npx -y npm@12 stage list dsh-game-daily --loglevel=http
         env:
@@ -34,10 +42,15 @@ jobs:
       - name: Raw API probes
         if: ${{ inputs.action == 'raw' }}
         run: |
-          for u in "https://registry.npmjs.org/-/stage/dsh-game-daily" "https://registry.npmjs.org/-/v1/stage/dsh-game-daily" "https://registry.npmjs.org/dsh-game-daily/stage"; do
-            code=$(curl -sS -o /tmp/out.json -w "%{http_code}" -H "Authorization: Bearer $NODE_AUTH_TOKEN" "$u" || true)
-            echo "== $u -> $code"
-            head -c 600 /tmp/out.json; echo
+          echo "=== unauthenticated packument dist-tags"
+          curl -sS -H 'Cache-Control: no-cache' https://registry.npmjs.org/-/package/dsh-game-daily/dist-tags; echo
+          echo "=== authenticated packument (dist-tags + staged)"
+          curl -sS -H "Authorization: Bearer $NODE_AUTH_TOKEN" -H 'Cache-Control: no-cache' https://registry.npmjs.org/dsh-game-daily \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);console.log('dist-tags',JSON.stringify(j['dist-tags']));console.log('versions',Object.keys(j.versions||{}).join(','));console.log('staged',JSON.stringify(j.staged||null).slice(0,500));})"
+          echo "=== stage endpoints"
+          for u in "https://registry.npmjs.org/-/stage?page=0&perPage=10" "https://registry.npmjs.org/-/stage?page=0&perPage=10&package=dsh-game-daily" "https://registry.npmjs.org/-/stage/dsh-game-daily"; do
+            code=$(curl -sS -o /tmp/o.json -w "%{http_code}" -H "Authorization: Bearer $NODE_AUTH_TOKEN" "$u" || true)
+            echo "-- $u -> $code"; head -c 400 /tmp/o.json; echo
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
