@@ -165,7 +165,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 
 - 工作流：`.github/workflows/publish.yml` —— 建 Release（Tag `vX.Y.Z`）自动发布；手动触发默认只做 dry-run。
 - 一次性准备：仓库 **Settings → Secrets and variables → Actions** 添加 `NPM_TOKEN` —— 在 npmjs.com 建 **Granular Access Token** 时权限必须选 **Read and write**，**不要**选 `Read and write (stage only)`（stage-only 只能进暂存队列，`npm publish` 会报 `E_STAGE_REQUIRED`）；Packages 选 All packages 并勾 Bypass 2FA。若改用 npm 的 Trusted Publishing（OIDC），可以不加 secret，工作流里的 `id-token: write` 会提供来源证明。
-- 已发布：dsh-game-daily@0.3.3（https://www.npmjs.com/package/dsh-game-daily ，带 provenance 证明）。
+- 已发布：dsh-game-daily@0.3.4（https://www.npmjs.com/package/dsh-game-daily ，带 provenance 证明）。
 pm i dsh-game-daily 或 dsh plugin add dsh-game-daily 即可。0.3.2 起值守提示词补上崩三的 **R10 保险操作**（误入子页/弹窗先按「确定→返回→主菜单」归位，再从被打断步骤的第 1 条动作重跑）。
 - 发版：`npm version patch`（或 minor / major）→ `git push --follow-tags` → 在 GitHub 用同一个 Tag 建 Release。
 - 工作流会先跑 `node test/smoke.mjs` 和 `npm publish --dry-run`，再 `npm publish --provenance`；`prepublishOnly` 也会跑一遍 smoke，坏包不会发出去。
