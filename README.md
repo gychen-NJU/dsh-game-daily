@@ -135,7 +135,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 - **一条龙本体可一键自动安装**：体检里「绝区零一条龙」缺失时，点「让 DSH 修复」会自动 `git clone`（没有 git 就下 zip）+ `uv sync` + 写基础配置（`config/01/game.yml`、`game_account.yml`）。默认装到 `D:\software\ZenlessZoneZero-OneDragon`，**不会装进系统盘**；可用 `DSH_GAME_DAILY_ZZZ_ROOT` 指定别的位置（同样拒绝 C 盘）。首次安装要下几百 MB、耗时几分钟，按钮会一直显示「处理中…」。装完位置会记录到 `<stateDir>/zzz-root.txt`，后续体检与运行都以它为准。
 - **权限**：绝区零以管理员运行，切窗口/发输入需要**提权的一条龙后端**。体检里「一条龙后端」不在跑时给「启动一条龙后端（会弹一次 UAC）」按钮；真实运行前 runner 也会自动尝试启动。
 - **流程**：`zzz_health → zzz_window →（窗口无效时 zzz_enter）→ zzz_run_one_dragon → 循环 zzz_wait → zzz_status`；跑完插件自动关游戏、停后端。已知坑：游戏停在标题界面直接跑一条龙，第一个应用（邮件）会报「未能识别当前画面」，所以必须先 `zzz_enter` 进到「大世界-普通」。
-- **清体力兜底（材料够了就刷驱动盘）**：一条龙的清体力计划里，「代理人方案培养（特训目标）」只要结算页出现「特训目标已达成」，就会被标记跳过、顺位执行后面的计划。插件因此在**每次真实运行前**自动把 `config/<实例>/one_dragon/charge_plan.yml` 补成两条计划：①代理人计划（`plan_times` 12 ≈ 240 电量，材料没满时把电量刷完）②紧跟着一条「区域巡防」（驱动盘本，`plan_times` 4 ≈ 240 电量）。于是材料一旦够了，剩下的电量会自然落在驱动盘上。
+- **清体力兜底（材料够了就刷驱动盘）**：一条龙的清体力计划里，「代理人方案培养（特训目标）」只要结算页出现「特训目标已达成」，就会被标记跳过、顺位执行后面的计划。插件因此在**每次真实运行前**自动把 `config/<实例>/one_dragon/charge_plan.yml` 补成两条计划：①代理人计划（每次按 `card_num` 5 张卡结算 = 100 电量，`plan_times` 3 ≈ 300 电量，材料没满时把电量刷完）②紧跟着一条「区域巡防」（驱动盘本，`plan_times` 4 ≈ 240 电量）。驱动盘副本由 `~/.dsh/game-daily/zzz-fallback.json` 的 `missionTypeName` 决定（`node automation/zzz-fallback.mjs --list` 查表、`--mission <名字>` 切换），其中 `trainedCharacter` 只用于汇报。于是材料一旦够了，剩下的电量会自然落在驱动盘上。
   - 选哪套驱动盘：在 `<stateDir>/zzz-fallback.json` 里写 `{"missionTypeName": "怪兽与怪客"}`（默认值），或用 `node automation/zzz-fallback.mjs --mission <副本名>`；`--list` 可看 15 个副本与对应套装。
   - 只预览不改：`node automation/zzz-fallback.mjs --dry-run`；查看当前配置与文件位置：`--config`。
   - 改写前自动备份成 `charge_plan.yml.bak-gd-disc-<时间戳>`；一条龙每轮开跑前会重读配置，所以改完**下一次运行即生效**，不需要重启后端。
