@@ -14,7 +14,7 @@ import { resolveBettergiMcp, vendorPath, bundledPath } from '../lib/bettergi-mcp
 import { SKILL_REPOS, inspectSkill, skillInstallPath, installSkill, bundledSkillPath, installSkillGroup, runCoverage } from '../lib/skills.mjs';
 import { registerBettergiMcp, hasBettergiMcpRow, bettergiMcpPatchPath } from '../lib/mcp-register.mjs';
 import { GAME_PROCESSES, runningGames, closeGame } from '../lib/gameproc.mjs';
-import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensureZzzConfigs, detectZzzGamePath, inspectZzzInstallRoot } from '../lib/zzz.mjs';
+import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensureZzzConfigs, detectZzzGamePath, inspectZzzInstallRoot, ZZZ_DISC_MISSION_TYPES, defaultZzzFallbackConfig, zzzFallbackConfig, findZzzChargePlanPath, buildZzzChargePlanScript } from '../lib/zzz.mjs';
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
 import { appendSession } from '../lib/install.mjs';
 import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
@@ -319,6 +319,32 @@ Promise.resolve()
         else process.env.DSH_GAME_DAILY_ZZZ_GAME = savedGame;
         fs.rmSync(tmp, { recursive: true, force: true });
       }
+    });
+    check('zzz charge-plan disc fallback', () => {
+      if (!Array.isArray(ZZZ_DISC_MISSION_TYPES) || ZZZ_DISC_MISSION_TYPES.length !== 15) {
+        throw new Error(`驱动盘副本类型应为 15 个：${ZZZ_DISC_MISSION_TYPES.length}`);
+      }
+      const names = new Set();
+      for (const item of ZZZ_DISC_MISSION_TYPES) {
+        if (!item.missionTypeName) throw new Error('副本类型缺 missionTypeName');
+        if (!Array.isArray(item.discs) || item.discs.length !== 2) throw new Error(`驱动盘对应关系异常：${item.missionTypeName}`);
+        if (names.has(item.missionTypeName)) throw new Error(`副本类型重复：${item.missionTypeName}`);
+        names.add(item.missionTypeName);
+      }
+      const def = defaultZzzFallbackConfig();
+      if (def.enabled !== true) throw new Error('默认应启用兜底');
+      if (def.agentPlanTimes !== 12) throw new Error(`代理人计划默认次数应为 12：${def.agentPlanTimes}`);
+      if (def.discPlanTimes !== 4) throw new Error(`驱动盘计划默认次数应为 4：${def.discPlanTimes}`);
+      if (!names.has(def.missionTypeName)) throw new Error(`默认驱动盘类型不在表里：${def.missionTypeName}`);
+      const merged = zzzFallbackConfig();
+      if (!names.has(merged.missionTypeName)) throw new Error('zzzFallbackConfig 返回的 missionTypeName 非法');
+      const yml = findZzzChargePlanPath('C:\\OD', 2);
+      if (!yml.endsWith(path.join('config', '02', 'one_dragon', 'charge_plan.yml'))) throw new Error(`charge_plan 路径异常：${yml}`);
+      const script = buildZzzChargePlanScript();
+      for (const token of ['charge_plan.yml', '代理人方案培养', '区域巡防', 'yaml.dump', "newline='\\n'"]) {
+        if (!script.includes(token)) throw new Error(`脚本缺少片段：${token}`);
+      }
+      return `types=${ZZZ_DISC_MISSION_TYPES.length} default=${def.missionTypeName} agent=${def.agentPlanTimes} disc=${def.discPlanTimes}`;
     });
     check('manifest has no BOM', () => {
       // PowerShell 的 Set-Content -Encoding UTF8 会写 BOM；DSH 用 JSON.parse 读 bundle 清单，
