@@ -338,6 +338,18 @@ Promise.resolve()
       if (def.discPlanTimes !== 4) throw new Error(`驱动盘计划默认次数应为 4：${def.discPlanTimes}`);
       if (String(def.restoreCharge) !== '不使用') throw new Error(`默认不应动用储蓄电量：${def.restoreCharge}`);
       if (!names.has(def.missionTypeName)) throw new Error(`默认驱动盘类型不在表里：${def.missionTypeName}`);
+      // zzz-fallback.json 必须真的被读到（2026-11-12：ensure 曾只合默认值，导致每天多刷一个驱动盘本）
+      const tmpState = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-fb-'));
+      const prevStateDir = process.env.DSH_GAME_DAILY_STATE_DIR;
+      try {
+        fs.writeFileSync(path.join(tmpState, 'zzz-fallback.json'), JSON.stringify({ missionTypeName: '游侠与守卫', restoreCharge: '不使用' }));
+        process.env.DSH_GAME_DAILY_STATE_DIR = tmpState;
+        const fromFile = zzzFallbackConfig();
+        if (fromFile.missionTypeName !== '游侠与守卫') throw new Error('zzz-fallback.json 未被读取：' + fromFile.missionTypeName);
+      } finally {
+        if (prevStateDir === undefined) delete process.env.DSH_GAME_DAILY_STATE_DIR; else process.env.DSH_GAME_DAILY_STATE_DIR = prevStateDir;
+        try { fs.rmSync(tmpState, { recursive: true, force: true }); } catch { /* ignore */ }
+      }
       const merged = zzzFallbackConfig();
       if (!names.has(merged.missionTypeName)) throw new Error('zzzFallbackConfig 返回的 missionTypeName 非法');
       const yml = findZzzChargePlanPath('C:\\OD', 2);
