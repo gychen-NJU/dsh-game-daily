@@ -138,6 +138,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 - **清体力兜底（材料够了就刷驱动盘）**：一条龙的清体力计划里，「代理人方案培养（特训目标）」只要结算页出现「特训目标已达成」，就会被标记跳过、顺位执行后面的计划。插件因此在**每次真实运行前**自动把 `config/<实例>/one_dragon/charge_plan.yml` 补成两条计划：①代理人计划（每次按 `card_num` 5 张卡结算 = 100 电量，`plan_times` 3 ≈ 300 电量，材料没满时把电量刷完）②紧跟着一条「区域巡防」（驱动盘本，`plan_times` 4 ≈ 240 电量）。驱动盘副本由 `~/.dsh/game-daily/zzz-fallback.json` 的 `missionTypeName` 决定（`node automation/zzz-fallback.mjs --list` 查表、`--mission <名字>` 切换），其中 `trainedCharacter` 只用于汇报。于是材料一旦够了，剩下的电量会自然落在驱动盘上。
   - 选哪套驱动盘：在 `<stateDir>/zzz-fallback.json` 里写 `{"missionTypeName": "怪兽与怪客"}`（默认值），或用 `node automation/zzz-fallback.mjs --mission <副本名>`；`--list` 可看 15 个副本与对应套装。
   - 只预览不改：`node automation/zzz-fallback.mjs --dry-run`；查看当前配置与文件位置：`--config`。
+- 两条护栏：①每次运行前会**清掉多余的旧驱动盘计划**（改过 `missionTypeName` 后残留的旧计划会被一条龙依次跑完，导致一天刷两个本、多耗电量）；②默认把 `restore_charge` 改成「不使用」，不会再动用储蓄电量——电量不够时一条龙干净结束（需要时可改 `zzz-fallback.json` 的 `restoreCharge`）。
   - 改写前自动备份成 `charge_plan.yml.bak-gd-disc-<时间戳>`；一条龙每轮开跑前会重读配置，所以改完**下一次运行即生效**，不需要重启后端。
 
 ## 自动更新

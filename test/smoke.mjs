@@ -336,13 +336,14 @@ Promise.resolve()
       if (def.agentPlanTimes !== 3) throw new Error(`代理人计划默认次数应为 3：${def.agentPlanTimes}`);
       if (String(def.agentCardNum) !== '5') throw new Error(`代理人计划默认应按 ×5 卡打：${def.agentCardNum}`);
       if (def.discPlanTimes !== 4) throw new Error(`驱动盘计划默认次数应为 4：${def.discPlanTimes}`);
+      if (String(def.restoreCharge) !== '不使用') throw new Error(`默认不应动用储蓄电量：${def.restoreCharge}`);
       if (!names.has(def.missionTypeName)) throw new Error(`默认驱动盘类型不在表里：${def.missionTypeName}`);
       const merged = zzzFallbackConfig();
       if (!names.has(merged.missionTypeName)) throw new Error('zzzFallbackConfig 返回的 missionTypeName 非法');
       const yml = findZzzChargePlanPath('C:\\OD', 2);
       if (!yml.endsWith(path.join('config', '02', 'one_dragon', 'charge_plan.yml'))) throw new Error(`charge_plan 路径异常：${yml}`);
       const script = buildZzzChargePlanScript();
-      for (const token of ['charge_plan.yml', '代理人方案培养', '区域巡防', 'yaml.dump', "newline='\\n'", 'agent.card_num']) {
+      for (const token of ['charge_plan.yml', '代理人方案培养', '区域巡防', 'yaml.dump', "newline='\\n'", 'agent.card_num', 'disc.prune', 'restore_charge']) {
         if (!script.includes(token)) throw new Error(`脚本缺少片段：${token}`);
       }
       return `types=${ZZZ_DISC_MISSION_TYPES.length} default=${def.missionTypeName} agent=${def.agentPlanTimes}x${def.agentCardNum} disc=${def.discPlanTimes}`;
