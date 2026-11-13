@@ -18,6 +18,7 @@ import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensure
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
 import { appendSession } from '../lib/install.mjs';
 import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
+import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath } from '../lib/maa.mjs';
 
 const results = [];
 // 后台刷新一次任务信息，验证异步 PowerShell 路径（真实环境里这一步由请求触发、不阻塞 UI）。
@@ -571,6 +572,58 @@ check('三月七小助手（m7a）：overlay / prompt 对字符串 game id 也�
   const bad = ensureOverlay({ stateDir: dir, game: null });
   if (!bad || bad.ok !== false) throw new Error('缺 game 时 ensureOverlay 应当返回 ok:false');
 });
+check('maa-bbb 集成（识宝小助手）', () => {
+  // 引擎注册
+  const hi = gameById('hi');
+  if (hi.engine !== 'maa-bbb') throw new Error('hi.engine 应为 maa-bbb，实际 ' + hi.engine);
+  if (hi.skillModule !== 'maa-bbb-control') throw new Error('hi.skillModule 应为 maa-bbb-control');
+
+  // 安装目录识别：不存在的目录必须判为未安装
+  const fake = inspectMaaInstallRoot('Z:\\no-such-maa-bbb');
+  if (fake.ok) throw new Error('不存在的目录不应 ok');
+
+  // 探针结构：无论装没装，都要返回对象且带 ok 字段（未装时 ok=false + searched）
+  const probe = maaInstallInfo();
+  if (!probe || typeof probe.ok !== 'boolean') throw new Error('maaInstallInfo 应返回带 ok 的对象');
+
+  // 提示词必须走 maa-bbb 分支
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-maa-'));
+  const prompt = buildRunPrompt({
+    game: 'hi',
+    mode: 'real',
+    runId: 't-maa',
+    runDir: tmp,
+    reportPath: path.join(tmp, 'report.json'),
+    skillsRoot: 'C:\\skills',
+    stateDir: tmp,
+  });
+  if (!prompt.includes('Maa_bbb')) throw new Error('hi 的 prompt 没走 maa-bbb 分支');
+  if (!/maa_bbb_status|maa_bbb_run/.test(prompt)) throw new Error('prompt 里没有 maa_bbb 工具说明');
+  if (prompt.includes('先用 skill 工具加载技能')) throw new Error('maa-bbb 不该要求外部加载技能');
+
+  // 本机已装时做真实只读探测
+  const info = maaInstallInfo();
+  let detail = '未安装（走安装分支）';
+  if (info.ok) {
+    if (!info.version) throw new Error('已安装但读不到版本');
+    const daily = maaDailyConfig(info.root);
+    if (!daily) throw new Error('已安装但没有可用配置');
+    if (!daily.id || !daily.name) throw new Error('daily 配置缺 id/name');
+    if (typeof daily.hasLeyline !== 'boolean') throw new Error('daily 应带 hasLeyline 标记');
+    const facts = maaFacts();
+    if (!facts || typeof facts !== 'object' || !Array.isArray(facts.lines)) throw new Error('maaFacts 结构不对');
+    detail = `${info.version} / 日常配置 ${daily.name}（勾选 ${daily.checkedCount}，乐土 ${daily.hasLeyline ? '是' : '否'}）/ ADB ${info.adbAvailable ? '有' : '无'}`;
+    // 游戏已在跑时 ensureBh3Running 必须 already:true 且不重复启动
+    if (isBh3Running()) {
+      const r = ensureBh3Running({ waitMs: 1000 });
+      if (!r.ok || !r.already) throw new Error('游戏已在跑时应 already:true');
+    } else if (bh3ExePath()) {
+      if (!/BH3\.exe$/i.test(bh3ExePath())) throw new Error('bh3ExePath 应指向 BH3.exe');
+    }
+  }
+  return detail;
+});
+
     for (const item of results) console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}  ${item.detail}`);
     exitCode = results.some((item) => !item.ok) ? 1 : 0;
     console.log(JSON.stringify({ ok: exitCode === 0, total: results.length, failed: results.filter((r) => !r.ok).length }));

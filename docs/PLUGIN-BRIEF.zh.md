@@ -27,7 +27,7 @@
 
 | 已有能力 | 能做什么 | 问题 |
 | --- | --- | --- |
-| `game-daily` / `game-daily-hi` 技能 | 崩坏3 的 14 步日常，在真实游戏界面里点完（星铁已改走三月七小助手，不再用技能点屏幕） | 需要人开一个会话说「帮我清日常」，跑完也没有固定的汇报格式 |
+| `game-daily` / `game-daily-hi` 技能 | 崩坏3 早期的 14 步日常（视觉定位点屏幕；2026-11-14 起崩三默认改走 Maa_bbb，技能保留作回退） | 需要人开一个会话说「帮我清日常」，跑完也没有固定的汇报格式 |
 | **随插件自带**的 `bettergi-control` 技能 + `bettergi-mcp`（29 个工具） | 原神一条龙（领邮件→合成树脂→秘境→每日奖励→尘歌壶→狗粮批发） | 同上，且窗口/分辨率等前置条件要自己查 |
 | Windows 计划任务 | 到点触发 | 只能触发「一条死命令」，不会汇报、不会记录、不会失败重试 |
 
@@ -63,7 +63,7 @@
 3. 点「开启代理」→ 出现排班卡与按钮组。
 4. 往下看「依赖体检」：dsh CLI、DSH 版本、headless 运行器、computer-use、技能、坐标校准、提权助手、BetterGI、bettergi-control 技能、bettergi-mcp 脚本、bettergi-mcp 注册——全绿。
 5. 设时间（例：11:00）→ 点「保存并应用」→ Windows 弹一次 UAC → 计划任务 `game-daily-genshin` 就绪。
-6. 切到崩坏3（技能 + 提权助手）与崩铁（三月七小助手：体检项 `m7a` / `m7a-skill` / `m7a-mcp`），各自重复。
+6. 切到崩坏3（Maa_bbb 识宝小助手：体检项 `maa-bbb` / `maa-bbb-skill` / `maa-bbb-mcp`）与崩铁（三月七小助手：体检项 `m7a` / `m7a-skill` / `m7a-mcp`），各自重复。
 7. 关掉设置页。之后每天到点自动发生。
 
 ### 某一轮自动运行（约 3 分钟，录屏重点）
@@ -123,7 +123,8 @@
                                                ▼
         原神：bettergi-mcp（29 个 bgi_* 工具）→ BetterGI 一条龙
         崩3：game-daily-* 技能 → 提权助手（ps-helper）或 computer-use（wincu）
-        崩铁：m7a MCP（m7a.exe CLI）→ 三月七小助手（main = 日常 + 清体力），agent 只值守/介入/汇报
+        崩坏3：maa-bbb MCP（mab.exe CLI）→ Maa_bbb 识宝小助手（--config-id … --direct-run），agent 只值守/介入/汇报
+崩铁：m7a MCP（m7a.exe CLI）→ 三月七小助手（main = 日常 + 清体力），agent 只值守/介入/汇报
                                                │ 执行
                                                ▼
               runs/<game>/<runId>/{meta.json, report.json, stdout.log}
@@ -183,12 +184,14 @@
 | `automation/tasks.json` | 交给注册脚本的任务定义 |
 | `automation/game-daily-register.ps1` | 提权注册/删除计划任务（自动从插件包复制到状态目录） |
 | `automation/register-result.json` | 注册结果（created / updated / removed / dryRun） |
-| `automation/headless-overlay.yml` | 运行时 overlay（原神注入 bettergi MCP，绝区零零 zzz-od MCP，崩铁注入 m7a MCP） |
+| `automation/headless-overlay.yml` | 运行时 overlay（原神注入 bettergi MCP，绝区零注入 zzz-od MCP，崩坏3 注入 maa-bbb MCP，崩铁注入 m7a MCP） |
 | `automation/run-headless.log` | 计划任务侧日志 |
 | `automation/guard-<game>.log` / `.stop` | 前台守护日志与停止旗标 |
 | `tools/bettergi-mcp/bettergi-mcp.mjs` | 随包自带的 MCP 服务器（原神 `bgi_*`，29 个工具） |
 | `tools/bettergi-control/` | 随包自带的 bettergi-control 技能（`SKILL.md` + 15 个脚本） |
 | `tools/m7a-mcp/m7a-mcp.mjs` | 随包自带的 M7A MCP（崩铁，9 个工具，直调 `m7a.exe`） |
+| `tools/maa-bbb-mcp/maa-bbb-mcp.mjs` | 随包自带的 Maa_bbb MCP（崩坏3，10 个 `maa_bbb_*` 工具，直调 `mab.exe`） |
+| `tools/maa-bbb-control/` | 随包自带的 maa-bbb-control 技能（`SKILL.md` + `scripts/maa-bbb.ps1`） |
 | `tools/m7a-control/` | 随包自带的 M7A 技能（`SKILL.md` + `scripts/m7a.ps1` + references） |
 | `vendor/bettergi-mcp/bettergi-mcp.mjs` | 可选：手动更新/覆盖用的副本（优先级高于自带） |
 | `notifications.log` | 通知记录 |

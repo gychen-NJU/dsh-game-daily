@@ -127,6 +127,17 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 - 解析优先级（bettergi-mcp）：`DSH_GAME_DAILY_BETTERGI_MCP` 环境变量 → 状态目录 `vendor/`（手动覆盖/更新）→ **插件自带副本** → 同级 `dsh-betterGI` 工作区（开发机布局）。
 - 想自己 clone 更新也可以：`git clone https://github.com/gychen-NJU/bettergi-mcp`，然后 `DSH_GAME_DAILY_BETTERGI_MCP=<clone 目录>\bettergi-mcp.mjs`。
 
+## 崩坏3 从哪来（Maa_bbb 识宝小助手）
+
+崩坏3 的日常现在交给外部开源项目 **Maa_bbb（识宝小助手，MaaFramework）**：插件只负责起跑前保证游戏在跑、按配置启动 `mab.exe`、值守看日志、收尾汇报。
+
+- 安装：把 [Maa_bbb Releases](https://github.com/miaojiuqing/Maa_bbb/releases) 的 `Maa_bbb-win-x86_64-*.zip` 解压到**非系统盘**（例如 `E:\software\Maa_bbb`），首次运行一次 `mab.exe` 让它生成三个预设配置，然后把目录写进 `<状态目录>\maa-root.txt`（或设 `DSH_GAME_DAILY_MAA_ROOT`）。
+- 日常：插件会挑名字含「日常」的配置；本机**没有 ADB/MuMu** 时自动选更精简的那份（避免往世乐土把整轮拖挂），有 ADB 时选任务更全的那份。
+- 往世乐土：仓库当前走**安卓端 MuMu + ADB**，本机没有就只能做配置面支持，汇报里会写明「乐土未跑：缺 MuMu/ADB」。
+- 硬性环境：Windows 桌面端需**管理员**运行、游戏 16:9、游戏内 设置 → 辅助 关闭「显示菜单提示」。
+- 出问题先看 `E:\software\Maa_bbb\debug\maafw.log` 与 `debug\gui.log`；「设备连接失败」= 游戏窗口没起来（插件已自动拉起，仍失败就说明 BH3.exe 路径不对）。
+- 随包工具：`tools\maa-bbb-mcp`（10 个 `maa_bbb_*` MCP 工具）与 `tools\maa-bbb-control`（SKILL.md + `scripts\maa-bbb.ps1`，doctor/status/configs/run/stop/logs）。
+
 ## 绝区零从哪来（一条龙）
 
 绝区零的画面识别与点击交给 [ZenlessZoneZero-OneDragon](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon)（下称「一条龙」）。它在本机跑一个 HTTP 后端（默认 `http://127.0.0.1:23001`），插件自带一个**零依赖 MCP 服务器** `tools/zzz-od-mcp/zzz-od-mcp.mjs`，把这个后端包装成 agent 可调用的工具（`mcp__zzz-od__*`，12 个：health/status/window/applications/operations/enter/run_one_dragon/run_app/wait/stop/close_game/server）。
@@ -166,7 +177,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 
 - 工作流：`.github/workflows/publish.yml` —— 建 Release（Tag `vX.Y.Z`）自动发布；手动触发默认只做 dry-run。
 - 一次性准备：仓库 **Settings → Secrets and variables → Actions** 添加 `NPM_TOKEN` —— 在 npmjs.com 建 **Granular Access Token** 时权限必须选 **Read and write**，**不要**选 `Read and write (stage only)`（stage-only 只能进暂存队列，`npm publish` 会报 `E_STAGE_REQUIRED`）；Packages 选 All packages 并勾 Bypass 2FA。若改用 npm 的 Trusted Publishing（OIDC），可以不加 secret，工作流里的 `id-token: write` 会提供来源证明。
-- 已发布：dsh-game-daily@0.3.4（https://www.npmjs.com/package/dsh-game-daily ，带 provenance 证明）。
+- 已发布：dsh-game-daily@0.3.5（https://www.npmjs.com/package/dsh-game-daily ，带 provenance 证明）。
 pm i dsh-game-daily 或 dsh plugin add dsh-game-daily 即可。0.3.2 起值守提示词补上崩三的 **R10 保险操作**（误入子页/弹窗先按「确定→返回→主菜单」归位，再从被打断步骤的第 1 条动作重跑）。
 - 发版：`npm version patch`（或 minor / major）→ `git push --follow-tags` → 在 GitHub 用同一个 Tag 建 Release。
 - 工作流会先跑 `node test/smoke.mjs` 和 `npm publish --dry-run`，再 `npm publish --provenance`；`prepublishOnly` 也会跑一遍 smoke，坏包不会发出去。

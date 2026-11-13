@@ -127,6 +127,17 @@ So that "install the plugin = all tools present", both Genshin companion tools *
 - Resolution order (bettergi-mcp): `DSH_GAME_DAILY_BETTERGI_MCP` env → `<stateDir>/vendor` (manual override/update) → **bundled copy** → sibling `dsh-betterGI` workspace (developer layout).
 - Cloning for updates still works: `git clone https://github.com/gychen-NJU/bettergi-mcp`, then `DSH_GAME_DAILY_BETTERGI_MCP=<clone dir>\bettergi-mcp.mjs`.
 
+## Where Honkai Impact 3 comes from (Maa_bbb)
+
+HI3 dailies are delegated to the external open-source **Maa_bbb** (MaaFramework). The plugin only makes sure the game is running, starts `mab.exe` with the chosen profile, watches the logs and reports.
+
+- Install: unzip the `Maa_bbb-win-x86_64-*.zip` release **outside the system drive** (e.g. `E:\software\Maa_bbb`), run `mab.exe` once so it creates the three preset configs, then write the folder into `<stateDir>\maa-root.txt` (or set `DSH_GAME_DAILY_MAA_ROOT`).
+- Daily: the plugin picks a config whose name contains 日常; without ADB/MuMu it prefers the smaller one, with ADB it prefers the fuller one.
+- Elysian Realm (往世乐土): currently needs the Android target (MuMu + ADB). Without it the plugin only supports configuration and says so in the report.
+- Requirements: run as administrator on the desktop target, game at 16:9, and turn off 设置 → 辅助 → 显示菜单提示.
+- Debug with `debug\maafw.log` / `debug\gui.log`; "设备连接失败" means the game window was missing.
+- Bundled: `tools\maa-bbb-mcp` (10 `maa_bbb_*` MCP tools) and `tools\maa-bbb-control` (SKILL.md + `scripts\maa-bbb.ps1`).
+
 ## Where Zenless Zone Zero comes from (OneDragon)
 
 All screen recognition and clicking for ZZZ is delegated to [ZenlessZoneZero-OneDragon](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon) ("one-dragon"). It runs a local HTTP backend (default `http://127.0.0.1:23001`). The plugin bundles a **zero-dependency MCP server** at `tools/zzz-od-mcp/zzz-od-mcp.mjs` that wraps that backend into agent tools (`mcp__zzz-od__*`, 12 of them: health/status/window/applications/operations/enter/run_one_dragon/run_app/wait/stop/close_game/server).
