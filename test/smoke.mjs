@@ -18,7 +18,7 @@ import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensure
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
 import { appendSession } from '../lib/install.mjs';
 import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
-import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath } from '../lib/maa.mjs';
+import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath, maaLeylineConfig } from '../lib/maa.mjs';
 
 const results = [];
 // 后台刷新一次任务信息，验证异步 PowerShell 路径（真实环境里这一步由请求触发、不阻塞 UI）。
@@ -613,6 +613,13 @@ check('maa-bbb 集成（识宝小助手）', () => {
     const facts = maaFacts();
     if (!facts || typeof facts !== 'object' || !Array.isArray(facts.lines)) throw new Error('maaFacts 结构不对');
     detail = `${info.version} / 日常配置 ${daily.name}（勾选 ${daily.checkedCount}，乐土 ${daily.hasLeyline ? '是' : '否'}）/ ADB ${info.adbAvailable ? '有' : '无'}`;
+
+    // 往世乐土：要么返回 null，要么返回带 adbAvailable/hasLeylineTask 的配置
+    const ley = maaLeylineConfig(info.root);
+    if (ley !== null && (typeof ley !== 'object' || !ley.id || typeof ley.adbAvailable !== 'boolean' || typeof ley.hasLeylineTask !== 'boolean')) {
+      throw new Error('maaLeylineConfig 返回值结构不对');
+    }
+    if (!facts.lines.some((l) => /往世乐土配置/.test(l))) throw new Error('maaFacts 里缺乐土配置那一行');
     // 游戏已在跑时 ensureBh3Running 必须 already:true 且不重复启动
     if (isBh3Running()) {
       const r = ensureBh3Running({ waitMs: 1000 });
