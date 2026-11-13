@@ -18,7 +18,7 @@ import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensure
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
 import { appendSession } from '../lib/install.mjs';
 import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
-import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath, maaLeylineConfig } from '../lib/maa.mjs';
+import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath, maaLeylineConfig, maaSetTaskChecked, ensureMaaExitTask, MAA_EXIT_TASK_NAME } from '../lib/maa.mjs';
 
 const results = [];
 // 后台刷新一次任务信息，验证异步 PowerShell 路径（真实环境里这一步由请求触发、不阻塞 UI）。
@@ -620,6 +620,11 @@ check('maa-bbb 集成（识宝小助手）', () => {
       throw new Error('maaLeylineConfig 返回值结构不对');
     }
     if (!facts.lines.some((l) => /往世乐土配置/.test(l))) throw new Error('maaFacts 里缺乐土配置那一行');
+    // 跑完退出游戏：任务名固定；未知任务必须被拒绝（不会误改配置）
+    if (MAA_EXIT_TASK_NAME !== '退出/关闭游戏') throw new Error('MAA_EXIT_TASK_NAME 不对');
+    if (typeof ensureMaaExitTask !== 'function') throw new Error('缺 ensureMaaExitTask');
+    const noTask = maaSetTaskChecked(info.root, daily.id, '__no_such_task__', true);
+    if (noTask.ok) throw new Error('未知任务应返回 ok:false');
     // 游戏已在跑时 ensureBh3Running 必须 already:true 且不重复启动
     if (isBh3Running()) {
       const r = ensureBh3Running({ waitMs: 1000 });
