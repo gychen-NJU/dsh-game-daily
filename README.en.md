@@ -135,6 +135,7 @@ HI3 dailies are delegated to the external open-source **Maa_bbb** (MaaFramework)
 - Daily: the plugin picks a config whose name contains 日常; without ADB/MuMu it prefers the smaller one, with ADB it prefers the fuller one.
 - Elysian Realm (往世乐土): currently needs the Android target (MuMu + ADB). Without it the plugin only supports configuration and says so in the report.
 - Requirements: run as administrator on the desktop target, game at 16:9, and turn off 设置 → 辅助 → 显示菜单提示.
+- Cleanup: when a real run finishes, `mab.exe` is closed as well (no background resident); the next run starts it again. Set `DSH_GAME_DAILY_MAA_KEEP_APP=1` to keep it (manual debugging / reuse).
 - Debug with `debug\maafw.log` / `debug\gui.log`; "设备连接失败" means the game window was missing.
 - Bundled: `tools\maa-bbb-mcp` (10 `maa_bbb_*` MCP tools) and `tools\maa-bbb-control` (SKILL.md + `scripts\maa-bbb.ps1`).
 

@@ -135,6 +135,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 - 日常：插件会挑名字含「日常」的配置；本机**没有 ADB/MuMu** 时自动选更精简的那份（避免往世乐土把整轮拖挂），有 ADB 时选任务更全的那份。
 - 往世乐土：仓库当前走**安卓端 MuMu + ADB**，本机没有就只能做配置面支持，汇报里会写明「乐土未跑：缺 MuMu/ADB」。
 - 硬性环境：Windows 桌面端需**管理员**运行、游戏 16:9、游戏内 设置 → 辅助 关闭「显示菜单提示」。
+- 收尾：一次真实运行结束后会把 `mab.exe` 一起关掉（不留后台常驻），下次起跑再拉起；想让它留着（手动调试/复用）设 `DSH_GAME_DAILY_MAA_KEEP_APP=1`。
 - 出问题先看 `E:\software\Maa_bbb\debug\maafw.log` 与 `debug\gui.log`；「设备连接失败」= 游戏窗口没起来（插件已自动拉起，仍失败就说明 BH3.exe 路径不对）。
 - 随包工具：`tools\maa-bbb-mcp`（10 个 `maa_bbb_*` MCP 工具）与 `tools\maa-bbb-control`（SKILL.md + `scripts\maa-bbb.ps1`，doctor/status/configs/run/stop/logs）。
 
