@@ -1,0 +1,196 @@
+# dsh-game-daily · Game Daily
+
+[简体中文](README.md) | **English**
+
+A DSH desktop plugin that puts the daily automation of **Genshin Impact / Honkai Impact 3rd / Honkai: Star Rail** into one panel in Settings — switch games at the top, toggle a per-game daily-agent switch that is **off by default**, set a schedule per game, and once saved the plugin creates Windows Scheduled Tasks that run the daily routine unattended. When a run finishes you get a Windows notification and (optionally) a new session that reports the result.
+
+## Install
+
+**From source (recommended):** clone the repo to any local directory, then point Harness's `plugin_manager` at that directory (it performs the package install and bundle selection itself; do **not** hand-edit the profile's `package.json` / `cordis.patch.yml`):
+
+```powershell
+git clone https://github.com/gychen-NJU/dsh-game-daily.git
+```
+
+```
+plugin_manager  action: install_bundle  target: <the cloned dsh-game-daily directory>
+```
+
+**Development** (link into a profile; code changes take effect after restarting the desktop app):
+
+```powershell
+dsh plugin --profile web add link:<this repo directory>
+```
+
+After installing: **Settings → Game Daily**. The package declares `dsh.bundle.patch` and `dsh.client`, so `dsh-game-daily` shows up in the profile's `dsh.profile.bundles`.
+
+### Hand it to an agent (one sentence)
+
+Send this to your DSH agent:
+
+> Install https://github.com/gychen-NJU/dsh-game-daily into my DSH desktop app: clone it locally, run plugin_manager install_bundle against that directory, then confirm "Settings → Game Daily" shows up and run the dependency check — fix anything it reports as missing.
+
+The agent will clone, install the bundle, verify activation, and use the built-in dependency check to fill in external requirements (BetterGI, computer-use, skills, ...).
+
+## What the panel does
+
+- **Game tabs**: Genshin Impact / Honkai Impact 3rd / Honkai: Star Rail / Zenless Zone Zero (driven by ZenlessZoneZero-OneDragon).
+- **Daily-agent switch (off by default)**: schedule and run settings appear only after you turn it on. Edits stay in a local draft; nothing is written and no task is (re)created until you press **Save & Apply**.
+- **Schedule**: daily time, run days (every day / specific weekdays), timeout, mode (real run / dry-run diagnosis only), catch-up on missed runs, append the result to that game's single reused report session (created once, then reused; recreated if deleted), game path (Genshin can point at `BetterGI.exe`). Timeout means how long one run may take (5–180 min; defaults: Genshin 150, HI3/Star Rail 45). The scheduler's execution time limit is set to timeout + 10 min, and the watchdog spends the 5-minute margin on finalizing the run itself.
+- **Dependency check**: dsh CLI, DSH version, headless runner (including the credentials patch), computer-use plugin, skill files, coordinate calibration, elevation helper, BetterGI, the bettergi-control skill, the bettergi-mcp script, the bettergi MCP registration; for HSR it also checks March7thAssistant (`m7a`), the bundled `m7a-control` skill and the bundled `m7a-mcp`. Every missing item gets a **"Let DSH fix it"** button: one-click items (install the bundled bettergi-control skill, register the MCP row) run directly and the button turns into **Working…**; multi-step or privileged repairs open a new DSH session with the repair steps (including backup/read-back requirements) and switch the UI to it.
+- **Run once / Stop / Disable all**: "Run once" uses the saved configuration; "Stop" kills that game's headless run; "Disable all" removes every scheduled task.
+- **Recent runs**: reads `report.json` (status, mode, steps, evidence, conclusion) plus the tail of stdout.
+
+## Execution pipeline
+
+```
+Settings panel ──POST /api/game-daily/apply──▶ state.json + automation/tasks.json
+                                                  │
+                                                  └─▶ automation/game-daily-register.ps1 (one UAC)
+                                                         └─▶ Windows Scheduled Task game-daily-<game>
+                                                                fires daily at HH:MM
+                                                                │
+                                                                ▼
+                                                node automation/run-headless.mjs --game <id>
+                                                                │  spawn
+                                                                ▼
+                                  dsh --profile headless --patch automation/headless-overlay.yml "<prompt>"
+                                                                │
+                                                                ▼
+                             runs the engine (Genshin → BetterGI; HI → game-daily-hi; HSR → March7thAssistant)
+                                                                │
+                                                                ▼
+                             <stateDir>/runs/<game>/<runId>/{meta.json,report.json,stdout.log,screens/}
+                                                                │  plugin reconciles every 60s
+                                                                ▼
+                                        record history → Windows toast → (optional) report session
+```
+
+- Every step of report delivery (`saved=` / `alive=` / `appended to …` or `reuse failed: <reason>; creating a new one`) is appended to `<stateDir>/automation/report.log`. The host logger is not persisted, so that file is the one place to look when asking "why was a new session created again?".
+
+- On the headless side, `--patch` layers an overlay that injects the bettergi MCP (needed by Genshin), and `DSH_PERMISSION_MODE=danger-full-access` makes the run unattended. HI uses the elevation helper (`scripts/run-step.mjs --ps`) when computer-use is unavailable. HSR is driven by March7thAssistant (M7A): the agent only supervises, intervenes on failures and reports.
+- The report is the only source of truth: `report.json`'s `status` is `success / partial / failed / timeout`; the plugin never guesses from process exit codes.
+- **Watchdog**: `run-headless.mjs` stops the headless run at "timeout − 5 min", writes a fallback `report.json` (`status=timeout`) and exits, so the OS time limit never kills the tree with nothing left behind.
+- **Fallback reconcile**: if even that report is missing (manual kill or crash), reconcile records a `failed` run and notifies after the process is gone and a 3-minute grace period has passed — no more silent runs.
+- **Foreground guard**: each run starts a 1-second-poll guard process from `automation/keep-foreground.ps1`. If the game window loses foreground, it is pulled back immediately (four levels of fallback: `SetForegroundWindow` → `AttachThreadInput` → simulated Alt → `SwitchToThisWindow`). It exits when the run ends/stops via a `.stop` file; logs go to `<stateDir>/automation/guard-<game>.log`. There is a **Foreground guard** toggle in the schedule card (`ui.foregroundGuard`, on by default).
+- **Process cleanup (real mode)**: when a run finishes, the plugin closes that game's process (for Genshin it also closes `BetterGI.exe`) to save background resources. Before a new run starts it closes any other game process (`Get-Process` + `Stop-Process -Force`); if the previous run is still active, the scheduled run waits for it to finish (up to 20 minutes by default, tunable via `DSH_GAME_DAILY_WAIT_MS`) instead of fighting over the game window. Dry mode never touches processes.
+
+## HTTP API (host side, prefix `/api/game-daily`)
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/state` | All game states + task summaries (scheduled-task info is cached and never blocks) |
+| GET | `/probe?games=genshin,hi` | Dependency check results |
+| POST | `/ui` | Save UI preferences (e.g. `lastGame`, `reportSessions`) |
+| POST | `/apply` | Save schedules and rebuild scheduled tasks; `{dryRun:true}` only prints what would be registered |
+| POST | `/disable` | Remove one game's (or all) scheduled tasks and turn the switch off |
+| POST | `/run` | Run once now: `{game, mode:'real'|'dry'}` |
+| POST | `/stop` | Stop that game's running process |
+| POST | `/run-task` | Fire the registered scheduled task immediately (via Task Scheduler, not the plugin) |
+| POST | `/install` | Create a repair session: `{check:'bettergi'}` or `{action:'fix-headless-credentials'}` |
+| GET | `/runs?game=genshin` | Run history summaries |
+| GET | `/run?id=<runId>` | Full report/meta/stdout of one run |
+| GET | `/update` | Check for updates: `{current, latest, hasUpdate, repo, releases, checkedAt}` (30 min cache, `?force=1` to refresh) |
+| POST | `/update` | Update now: `git pull --ff-only` when `.git` exists, otherwise download the zip and overwrite; returns `{from, to, method, restartRequired}` |
+| POST | `/reconcile` | Trigger one reconciliation manually (normally every 60s) |
+
+## Data location
+
+- State and run artifacts: `$DSH_HOME/game-daily/` (default `%USERPROFILE%\.dsh\game-daily`)
+  - `state.json` (atomic writes), `runs/<game>/<runId>/`, `automation/{tasks.json,game-daily-register.ps1,register-result.json,headless-overlay.yml,run-headless.log}`, `notifications.log`
+
+## Environment variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DSH_HOME` | `%USERPROFILE%\.dsh` | DSH home directory |
+| `DSH_PROFILE` | `desktop` | Profile used to check headless / plugins |
+| `DSH_SKILLS_ROOT` | `%USERPROFILE%\.agents\skills` | Skill directory (game-daily family) |
+| `DSH_GAME_DAILY_DEV` | — | `1` = dev isolation: state dir gains `/dev`, task prefix `game-daily-dev-` |
+| `DSH_GAME_DAILY_STATE_DIR` | `$DSH_HOME/game-daily` | Override the state directory |
+| `DSH_GAME_DAILY_TASK_PREFIX` | `game-daily-` | Override the scheduled-task name prefix |
+| `DSH_GAME_DAILY_BETTERGI_MCP` | auto-resolved (see below) | Explicit path to the bettergi MCP server script (highest priority) |
+| `DSH_GAME_DAILY_BETTERGI` | `D:\software\BetterGI\BetterGI.exe` | BetterGI install path (used by the dependency check) |
+
+## Bundled tools (bettergi-mcp / bettergi-control)
+
+So that "install the plugin = all tools present", both Genshin companion tools **ship inside the plugin package**:
+
+| Location | Content |
+| --- | --- |
+| `tools/bettergi-mcp/bettergi-mcp.mjs` | the MCP server exposing the Genshin `bgi_*` tools (single file, zero dependencies, ~100KB, 29 tools) |
+| `tools/bettergi-control/` | the bettergi-control skill (`SKILL.md` + `references/` + 15 `bgi-*.ps1` scripts) |
+
+- **bettergi-mcp**: the dependency check reports "ready (bundled)"; **Register bettergi MCP** just appends a `dsh-mcp-client` entry to the current profile's `cordis.patch.yml` (backed up as `cordis.patch.yml.bak-gd-<timestamp>`, read back and verified, skipped when already present). Restart DSH to load it — **no network access needed**.
+- **bettergi-control**: when `%USERPROFILE%\.agents\skills\bettergi-control\SKILL.md` is missing (or has fewer than 10 scripts), the panel shows **Install bettergi-control (bundled)**; one click is a **pure local copy** (the old directory is backed up as `bettergi-control.bak-<timestamp>`) — **no network access needed**. Override the skill directory with `DSH_SKILLS_ROOT`.
+- The remote repositories [`gychen-NJU/bettergi-mcp`](https://github.com/gychen-NJU/bettergi-mcp) and [`gychen-NJU/bettergi-control`](https://github.com/gychen-NJU/bettergi-control) are only the **upstream source / update channel**: the plugin only goes to GitHub when its bundled copy is missing (an incomplete install), to fetch the single file (mcp) or zip (skill) as a fallback.
+- Resolution order (bettergi-mcp): `DSH_GAME_DAILY_BETTERGI_MCP` env → `<stateDir>/vendor` (manual override/update) → **bundled copy** → sibling `dsh-betterGI` workspace (developer layout).
+- Cloning for updates still works: `git clone https://github.com/gychen-NJU/bettergi-mcp`, then `DSH_GAME_DAILY_BETTERGI_MCP=<clone dir>\bettergi-mcp.mjs`.
+
+## Where Honkai Impact 3 comes from (Maa_bbb)
+
+HI3 dailies are delegated to the external open-source **Maa_bbb** (MaaFramework). The plugin only makes sure the game is running, starts `mab.exe` with the chosen profile, watches the logs and reports.
+
+- Install: unzip the `Maa_bbb-win-x86_64-*.zip` release **outside the system drive** (e.g. `E:\software\Maa_bbb`), run `mab.exe` once so it creates the three preset configs, then write the folder into `<stateDir>\maa-root.txt` (or set `DSH_GAME_DAILY_MAA_ROOT`).
+- Daily: the plugin picks a config whose name contains 日常; without ADB/MuMu it prefers the smaller one, with ADB it prefers the fuller one.
+- Elysian Realm (往世乐土): currently needs the Android target (MuMu + ADB). Without it the plugin only supports configuration and says so in the report.
+- Requirements: run as administrator on the desktop target, game at 16:9, and turn off 设置 → 辅助 → 显示菜单提示.
+- Cleanup: when a real run finishes, `mab.exe` is closed as well (no background resident); the next run starts it again. Set `DSH_GAME_DAILY_MAA_KEEP_APP=1` to keep it (manual debugging / reuse).
+- Debug with `debug\maafw.log` / `debug\gui.log`; "设备连接失败" means the game window was missing.
+- Bundled: `tools\maa-bbb-mcp` (10 `maa_bbb_*` MCP tools) and `tools\maa-bbb-control` (SKILL.md + `scripts\maa-bbb.ps1`).
+
+## Where Zenless Zone Zero comes from (OneDragon)
+
+All screen recognition and clicking for ZZZ is delegated to [ZenlessZoneZero-OneDragon](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon) ("one-dragon"). It runs a local HTTP backend (default `http://127.0.0.1:23001`). The plugin bundles a **zero-dependency MCP server** at `tools/zzz-od-mcp/zzz-od-mcp.mjs` that wraps that backend into agent tools (`mcp__zzz-od__*`, 12 of them: health/status/window/applications/operations/enter/run_one_dragon/run_app/wait/stop/close_game/server).
+
+- **Ships with the plugin**: the MCP server, `automation/zzz-server.ps1` (elevated start/stop of the backend) and `skills/zzz-od-control/SKILL.md` are all inside the package — nothing is fetched from another repository.
+- **OneDragon itself can be installed in one click**: when the ZZZ dependency check reports it missing, pressing "Let DSH fix this" runs `git clone` (or a zip download when git is absent) + `uv sync` + writes the base config (`config/01/game.yml`, `game_account.yml`). It installs to `D:\software\ZenlessZoneZero-OneDragon` by default and **never into the system drive**; set `DSH_GAME_DAILY_ZZZ_ROOT` to choose another location (C: is still rejected). The first install downloads hundreds of MB and takes a few minutes, so the button keeps showing "Working…". The chosen root is recorded in `<stateDir>/zzz-root.txt` and used by later checks and runs.
+- **Privileges**: ZZZ runs elevated, so switching its window / sending input needs an **elevated backend**. When the dependency check finds it down, it offers **Start OneDragon backend (one UAC)**; the runner also tries to start it before a real run.
+- **Flow**: `zzz_health → zzz_window → (zzz_enter if the window is not ready) → zzz_run_one_dragon → zzz_wait in a loop → zzz_status`; after the run the plugin closes the game and stops the backend. Known trap: running one-dragon while the game sits on the title screen makes the first app (mail) fail with "cannot recognise the screen", so `zzz_enter` first.
+- **Stamina fallback (farm drive discs once the agent's materials are done)**: in one-dragon's charge plan, the "Agent training plan (特训目标)" entry is marked skipped as soon as the battle result screen says the training goal is reached, and the next plan in the list takes over. Before every real run the plugin therefore rewrites `config/<instance>/one_dragon/charge_plan.yml` into two plans: ① the agent plan with `card_num` 5 (100 stamina per run) and `plan_times` 3 (≈300 stamina — drains the bar while materials are still needed) ② an "Area Patrol" (drive-disc stage) plan right after it with `plan_times` 4 (≈240 stamina). The drive-disc stage is chosen by `missionTypeName` in `~/.dsh/game-daily/zzz-fallback.json` (`node automation/zzz-fallback.mjs --list` / `--mission <name>`; `trainedCharacter` is for reporting only). Once the materials are done, the remaining stamina naturally lands on drive discs.
+  - Pick the disc stage with `{"missionTypeName":"怪兽与怪客"}` in `<stateDir>/zzz-fallback.json` (the default), or `node automation/zzz-fallback.mjs --mission <name>`; `--list` prints the 15 stages and the two sets each one drops.
+  - Preview only: `node automation/zzz-fallback.mjs --dry-run`; show the current config and paths: `--config`.
+- Two guardrails: ① stale drive-disc plans are **pruned** on every run (leftovers from an older `missionTypeName` would otherwise all be executed by one-dragon, farming two stages and burning far more stamina); ② `restore_charge` is forced to "不使用" (never digs into the backup stamina bar) — one-dragon stops cleanly when the bar runs out (override via `restoreCharge` in `zzz-fallback.json`).
+  - Each rewrite backs up to `charge_plan.yml.bak-gd-disc-<timestamp>`; one-dragon re-reads its config before every run, so the change takes effect on the next run without restarting the backend.
+## Auto-update
+
+The settings panel opens with a version bar that **reads the latest `package.json` from GitHub** and compares it with the local version.
+
+- When the remote is newer the bar turns amber with "Update available vX.Y.Z" and offers **Update now** / Later / Release notes. Updating runs `git pull --ff-only` for git installs, or downloads the zip and overwrites plugin files when git is absent (`node_modules` and user data are untouched).
+- Up to date: the bar only shows "Version vX.Y.Z · You are on the latest version" plus a **Check for updates** link (30 min cache, click forces a refresh).
+- Files are swapped on disk, so **restart the DSH desktop app** to load the new code (scheduled tasks spawn a fresh node process each run and are unaffected).
+- Version comparison handles `x.y.z` and `x.y.z-pre` (a prerelease sorts lower); a failed check is reported inline instead of throwing.
+
+## Dependencies and boundaries
+
+- Genshin: BetterGI (default `D:\software\BetterGI`, editable in the panel) + **bundled** bettergi-control skill and bettergi-mcp (above). BetterGI has no HTTP API — it can only be driven by command line / script groups.
+- Zenless Zone Zero: ZenlessZoneZero-OneDragon (default `D:\software\ZenlessZoneZero-OneDragon`, auto-installable when missing) + an elevated one-dragon backend. The MCP server and skill ship with this plugin; the game itself still has to be installed.
+- HI: the `game-daily` skill family + the elevation helper (switch to computer-use per the skill docs when synthetic clicks are filtered).
+- HSR: March7thAssistant (M7A) with the bundled `tools/m7a-mcp` and `tools/m7a-control`; the dependency check reports `m7a` / `m7a-skill` / `m7a-mcp` and the fix button opens an agent session that installs and configures it. The install directory is always asked first (C: is avoided by default; about 1.5 GB after extraction). Trailblaze power is reserved for in-game Build Targets (ascension/trace materials, relics and planar ornaments): `build_target_enable=true`, with both `instance_type` and `activity_gardenofplenty_instance_type` set to "Calyx (Crimson)"; Golden credit/EXP calyx is never farmed unless the user explicitly asks.
+- There is **no background/AFK mode**: Genshin must be visible and in the foreground at 16:9 ≥ 1920×1080; a locked screen will fail.
+- Registering scheduled tasks and running BetterGI require one UAC confirmation; the panel says so next to the button.
+- Account risk depends on how you use it: the official terms list third-party software / simulated input as grounds for a ban. Use it discreetly.
+
+## Release (npm)
+
+The plugin installs from GitHub source as-is; publish it to npm to get a download figure in the plugin market and to let `dsh plugin add dsh-game-daily` install from the registry:
+
+- Workflow: `.github/workflows/publish.yml` — publishing a GitHub Release (tag `vX.Y.Z`) publishes the package; manual runs default to a dry run.
+- One-time setup: add `NPM_TOKEN` under **Settings → Secrets and variables → Actions** — a npm **Granular Access Token** whose permission is **Read and write**, **not** `Read and write (stage only)` (stage-only tokens can only queue a staged release and `npm publish` fails with `E_STAGE_REQUIRED`); pick All packages and tick Bypass 2FA. With npm Trusted Publishing (OIDC) you can drop the secret; `id-token: write` in the workflow provides provenance.
+- Published: dsh-game-daily@0.3.4 (https://www.npmjs.com/package/dsh-game-daily , with a provenance attestation). Install with 
+pm i dsh-game-daily or dsh plugin add dsh-game-daily. Since 0.3.2 the watch prompt carries Honkai Impact 3rd **R10 recovery** (bounce back with OK -> Back -> Main Menu, then rerun the interrupted step from its first action).
+- Release: `npm version patch` (or minor / major) → `git push --follow-tags` → create a GitHub Release with the same tag.
+- The workflow runs `node test/smoke.mjs` and `npm publish --dry-run` first, then `npm publish --provenance`; `prepublishOnly` runs the smoke test again so a broken package cannot ship.
+- To appear in the [plugin catalog](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin), open a PR adding `data/plugins/<owner>__<repo>.yml` (already done for this plugin).
+## Development
+
+```powershell
+node test/smoke.mjs          # pure-Node smoke test (no network, no UAC)
+node --check index.js        # syntax check
+```
+
+`lib/` is pure Node with no third-party dependencies; `client.js` is a Harness lazy client factory (`window.__ModuleLoader__.load`) that registers exactly one slot: `settings.section`.
+
+## License
+
+[MIT](LICENSE) © 2026 gychen-NJU

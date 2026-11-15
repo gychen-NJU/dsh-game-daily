@@ -1,0 +1,10 @@
+node_modules/
+*.log
+state/
+runs/
+automation/*.stop
+automation/*.pid
+automation/register-result.json
+automation/tasks.json
+automation/headless-overlay.yml
+.DS_Store

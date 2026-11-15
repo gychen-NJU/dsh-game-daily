@@ -1,0 +1,70 @@
+{
+  "name": "dsh-game-daily",
+  "version": "0.3.12",
+  "description": "DSH 插件：游戏日常代理（原神 / 崩坏3 / 星穹铁道 / 绝区零）——设置页逐游戏开关、每游戏排班、到点自动执行并汇报结果",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "game-daily",
+    "bettergi",
+    "zenless-zone-zero",
+    "automation"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gychen-NJU/dsh-game-daily.git"
+  },
+  "homepage": "https://github.com/gychen-NJU/dsh-game-daily#readme",
+  "bugs": {
+    "url": "https://github.com/gychen-NJU/dsh-game-daily/issues"
+  },
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./icon": "./icon.svg",
+    "./locale/*": "./locale/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "lib",
+    "automation",
+    "tools",
+    "skills",
+    "locale",
+    "icon.svg",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0-rc.1",
+    "node": ">=22"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs",
+    "prepublishOnly": "node test/smoke.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

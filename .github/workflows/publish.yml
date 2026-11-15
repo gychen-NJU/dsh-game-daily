@@ -1,0 +1,46 @@
+name: publish-npm
+
+# 发布流程：在 GitHub 上打一个 Release（Tag 形如 v0.3.2）即自动发布到 npm。
+# 也可以手动触发（默认 dry-run，只验证打包内容，不会真的发版）。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only (npm publish --dry-run)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write   # npm provenance（OIDC 来源证明）
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # 本插件运行在 Windows 上（PowerShell、计划任务、游戏进程），冒烟测试里有 Windows-only 断言，
+    # 因此放在 windows runner 上跑，才能真实验证这些路径。
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Smoke test
+        run: node test/smoke.mjs
+
+      - name: Pack sanity (dry run)
+        run: npm publish --provenance --access public --dry-run
+
+      - name: Publish to npm
+        if: ${{ github.event_name == 'release' || inputs.dry_run == false }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

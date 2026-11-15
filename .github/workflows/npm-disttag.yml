@@ -1,0 +1,35 @@
+name: npm dist-tag
+
+# 用途：npm 发布后的传播偶发滞后（版本已出现在 packument 里，但 dist-tags.latest 没跟上），
+# 用这个工作流手动把某个已存在的版本指到指定 tag 上，避免用户默认安装到旧版本。
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '已存在的版本号，例如 0.3.5'
+        required: true
+      tag:
+        description: '要指向的 dist-tag'
+        required: false
+        default: latest
+
+jobs:
+  disttag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Point dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          V="${{ inputs.version }}"
+          T="${{ inputs.tag }}"
+          echo "before:"; npm dist-tag ls dsh-game-daily || true
+          npm dist-tag add "dsh-game-daily@${V}" "${T}"
+          echo "after:"; npm dist-tag ls dsh-game-daily
+      - name: Verify via registry
+        run: |
+          node -e "fetch('https://registry.npmjs.org/dsh-game-daily').then(r=>r.json()).then(j=>console.log('dist-tags:',JSON.stringify(j['dist-tags']),'has version:',!!j.versions['${{ inputs.version }}']))"
