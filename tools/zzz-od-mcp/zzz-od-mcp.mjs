@@ -11,19 +11,72 @@
  *       → 工具名形如 mcp__zzz-od__zzz_run_one_dragon
  *
  * 环境变量（都可省略）：
- *   ZZZ_OD_ROOT  一条龙安装根，默认 E:\software\ZenlessZoneZero-OneDragon
+ *   ZZZ_OD_ROOT  一条龙安装根；别名 DSH_GAME_DAILY_ZZZ_ROOT。都没设时按
+ *                <stateDir>/zzz-root.txt 书签 → 常见目录探测 → 出厂默认 D:\software\ZenlessZoneZero-OneDragon
  *   ZZZ_OD_URL   后端地址，默认 http://127.0.0.1:23001
  *   ZZZ_OD_SCRIPT_DIR  zzz-server.ps1 所在目录（默认插件根/automation）
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.resolve(HERE, '..', '..');
-const ROOT = process.env.ZZZ_OD_ROOT || 'D:\\software\\ZenlessZoneZero-OneDragon';
+// 安装根解析（与 lib/zzz.mjs 同一套约定）：环境变量 → 书签 → 常见目录探测 → 出厂默认。
+// 一条龙可以装在任意盘符（E:\software、D:\Games ...），只认死一个默认目录必然踩空（issue #7）。
+const ZZZ_ROOT_ENV_NAMES = ['DSH_GAME_DAILY_ZZZ_ROOT', 'ZZZ_OD_ROOT'];
+const ZZZ_ROOT_DEFAULT = 'D:\\software\\ZenlessZoneZero-OneDragon';
+const ZZZ_PROBE_DRIVES = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:'];
+
+function normalizeRoot(value) {
+  const raw = String(value == null ? '' : value).trim().replace(/^["']+/, '').replace(/["']+$/, '').replace(/[\\/]+$/, '');
+  if (!raw) return '';
+  return /\.exe$/i.test(raw) ? path.win32.dirname(raw) : raw;
+}
+
+function isZzzRoot(dir) {
+  if (!dir) return false;
+  try {
+    return existsSync(path.join(dir, '.venv', 'Scripts', 'python.exe')) && existsSync(path.join(dir, 'src', 'zzz_od'));
+  } catch { return false; }
+}
+
+function zzzPointerFile() {
+  const base = process.env.DSH_GAME_DAILY_STATE_DIR || path.join(process.env.USERPROFILE || '', '.dsh', 'game-daily');
+  return path.join(base, 'zzz-root.txt');
+}
+
+function readZzzPointer() {
+  try {
+    const raw = readFileSync(zzzPointerFile(), 'utf8').replace(/^\uFEFF/, '').trim();
+    return normalizeRoot(raw);
+  } catch { return ''; }
+}
+
+function probeZzzRoots() {
+  const list = [];
+  for (const drive of ZZZ_PROBE_DRIVES) {
+    for (const mid of ['software', 'Games', 'Tools']) list.push(path.win32.join(drive, mid, 'ZenlessZoneZero-OneDragon'));
+    list.push(path.win32.join(drive, 'ZenlessZoneZero-OneDragon'));
+  }
+  list.push(ZZZ_ROOT_DEFAULT);
+  return list;
+}
+
+function resolveZzzRoot() {
+  for (const name of ZZZ_ROOT_ENV_NAMES) {
+    const dir = normalizeRoot(process.env[name]);
+    if (isZzzRoot(dir)) return dir;
+  }
+  const pointer = readZzzPointer();
+  if (isZzzRoot(pointer)) return pointer;
+  for (const dir of probeZzzRoots()) if (isZzzRoot(dir)) return dir;
+  return ZZZ_ROOT_DEFAULT;
+}
+
+const ROOT = resolveZzzRoot();
 const BASE = (process.env.ZZZ_OD_URL || 'http://127.0.0.1:23001').replace(/\/+$/, '');
 const SCRIPT_DIR = process.env.ZZZ_OD_SCRIPT_DIR || path.join(PLUGIN_ROOT, 'automation');
 const SERVER_SCRIPT = path.join(SCRIPT_DIR, 'zzz-server.ps1');

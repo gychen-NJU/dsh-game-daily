@@ -24,7 +24,7 @@
 .PARAMETER Overwrite
     覆盖已存在的文件
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测，都找不到才用 D:\software\BetterGI
 .EXAMPLE
     pwsh -File bgi-fetch-route.ps1 -Material 星螺                 # 只检索
     pwsh -File bgi-fetch-route.ps1 -Material 星螺 -Download       # 检索 + 下载
@@ -41,8 +41,18 @@ param(
     [switch]$All,
     [switch]$Overwrite,
     [switch]$RefreshIndex,
-    [string]$Root = 'D:\software\BetterGI'
+    [string]$Root = ''
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 若技能目录里没有 helper（旧版本安装），就退回旧的默认值，行为与以前一致。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }

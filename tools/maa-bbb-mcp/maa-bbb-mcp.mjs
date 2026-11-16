@@ -158,7 +158,11 @@ function resolveRoot() {
     searched.push({ source: `pointer:${pointerPath}`, path: '(不存在)', exists: false });
   }
   const home = process.env.USERPROFILE || os.homedir();
-  for (const candidate of ['E:\\software\\Maa_bbb', 'D:\\software\\Maa_bbb', 'C:\\software\\Maa_bbb', path.join(home, 'Maa_bbb')]) {
+  for (const candidate of [
+    'E:\\software\\Maa_bbb', 'D:\\software\\Maa_bbb', 'C:\\software\\Maa_bbb',
+    'D:\\Games\\Maa_bbb', 'E:\\Games\\Maa_bbb', 'C:\\Games\\Maa_bbb',
+    path.join(home, 'Maa_bbb'), path.join(home, 'Games', 'Maa_bbb'),
+  ]) {
     const found = consider(candidate, 'candidate');
     if (found) return found;
   }

@@ -29,7 +29,7 @@
 .PARAMETER RegKey
     注册表根键，默认 HKCU:\Software\miHoYo\原神（国际服可传 HKCU:\Software\miHoYo\Genshin Impact）。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI（用来找 YuanShen.exe 与 BetterGI.exe）。
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测，都找不到才用 D:\software\BetterGI（用来找 YuanShen.exe 与 BetterGI.exe）。
 .PARAMETER InstallPath
     YuanShen.exe 绝对路径；省略时从 BetterGI 的 User\config.json 里读 genshinStartConfig.installPath。
 .PARAMETER StateDir
@@ -75,7 +75,7 @@ param(
     [int]$Height = 1080,
     [int]$Fullscreen = 0,
     [string]$RegKey = 'HKCU:\Software\miHoYo\原神',
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = '',
     [string]$InstallPath = '',
     [string]$StateDir = '',
     [switch]$Apply,
@@ -89,6 +89,16 @@ param(
     [switch]$Json,
     [int]$WaitSeconds = 150
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 若技能目录里没有 helper（旧版本安装），就退回旧的默认值，行为与以前一致。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Continue'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
@@ -155,8 +165,20 @@ function Resolve-GameExe {
             }
         } catch { }
     }
-    foreach ($guess in @('D:\Saved Games\Genshin Impact Game\YuanShen.exe', 'D:\Program Files\Genshin Impact\Genshin Impact Game\YuanShen.exe')) {
-        if (Test-Path -LiteralPath $guess) { return $guess }
+    # 兜底：环境变量 → 各盘符的启动器布局（原神可能装在任意盘符，别只猜 D 盘）
+    foreach ($envName in @('DSH_GAME_DAILY_GENSHIN_EXE', 'GENSHIN_EXE', 'YUANSHEN_EXE')) {
+        $value = [Environment]::GetEnvironmentVariable($envName)
+        if ($value -and (Test-Path -LiteralPath $value)) { return $value }
+    }
+    foreach ($drive in @('C:', 'D:', 'E:', 'F:', 'G:', 'H:')) {
+        foreach ($guess in @(
+            (Join-Path $drive 'miHoYo Launcher\games\Genshin Impact\Genshin Impact Game\YuanShen.exe'),
+            (Join-Path $drive 'Games\miHoYo Launcher\games\Genshin Impact\Genshin Impact Game\YuanShen.exe'),
+            (Join-Path $drive 'Genshin Impact\Genshin Impact Game\YuanShen.exe'),
+            (Join-Path $drive 'Program Files\miHoYo Launcher\games\Genshin Impact\Genshin Impact Game\YuanShen.exe')
+        )) {
+            if (Test-Path -LiteralPath $guess) { return $guess }
+        }
     }
     return ''
 }

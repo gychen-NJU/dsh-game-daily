@@ -19,6 +19,7 @@ import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mj
 import { appendSession } from '../lib/install.mjs';
 import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
 import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath, maaLeylineConfig, maaSetTaskChecked, ensureMaaExitTask, MAA_EXIT_TASK_NAME } from '../lib/maa.mjs';
+import { stateDir, pointerPath, readPointer, writePointer, normalizeRoot, dedupe, inspectBettergiRoot, bettergiInfo, bettergiRoot, gameExe, gameExeCandidates, BETTERGI_ROOT_DEFAULT } from '../lib/gamepaths.mjs';
 
 const results = [];
 // 后台刷新一次任务信息，验证异步 PowerShell 路径（真实环境里这一步由请求触发、不阻塞 UI）。
@@ -634,6 +635,95 @@ check('maa-bbb 集成（识宝小助手）', () => {
     }
   }
   return detail;
+});
+
+check('gamepaths 安装路径解析', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-gamepaths-'));
+  const savedEnv = {
+    state: process.env.DSH_GAME_DAILY_STATE_DIR,
+    bgi: process.env.DSH_GAME_DAILY_BETTERGI_ROOT,
+    alias: process.env.DSH_GAME_DAILY_BETTERGI,
+    legacy: process.env.BETTERGI_ROOT,
+    bh3: process.env.DSH_GAME_DAILY_BH3_EXE,
+  };
+  try {
+    const envRoot = path.join(tmp, 'env-BetterGI');
+    const pointerRoot = path.join(tmp, 'pointer-BetterGI');
+    for (const dir of [envRoot, pointerRoot]) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'BetterGI.exe'), '');
+    }
+    process.env.DSH_GAME_DAILY_STATE_DIR = tmp;
+    for (const name of ['DSH_GAME_DAILY_BETTERGI_ROOT', 'DSH_GAME_DAILY_BETTERGI', 'BETTERGI_ROOT']) delete process.env[name];
+    process.env.DSH_GAME_DAILY_BETTERGI_ROOT = envRoot;
+
+    // 1) exe → 目录，去引号/尾斜杠
+    if (normalizeRoot(path.join(envRoot, 'BetterGI.exe')) !== envRoot) throw new Error('normalizeRoot 未把 exe 归一成目录');
+    if (normalizeRoot(`"${envRoot}\\\\"`) !== envRoot) throw new Error(`normalizeRoot 未去掉引号/尾斜杠：${normalizeRoot(`"${envRoot}\\\\"`)}`);
+    if (normalizeRoot('') !== '') throw new Error('normalizeRoot 空值应返回空串');
+
+    // 2) 探针只认有 BetterGI.exe 的目录
+    if (!inspectBettergiRoot(envRoot).ok) throw new Error('inspectBettergiRoot 应识别带 BetterGI.exe 的目录');
+    if (inspectBettergiRoot(path.join(tmp, '不存在')).ok) throw new Error('不存在的目录不应算 ok');
+
+    // 3) 书签路径跟着 stateDir 走
+    if (pointerPath('bettergi') !== path.join(tmp, 'bettergi-root.txt')) throw new Error(`书签路径不对：${pointerPath('bettergi')}`);
+    // stateDir 默认值不能是空串（否则书签落到进程 CWD）
+    if (!stateDir()) throw new Error('stateDir 为空');
+
+    // 4) 优先级：环境变量 > 书签 > 探测
+    if (bettergiInfo().root !== envRoot) throw new Error(`环境变量应优先：${bettergiInfo().root}`);
+    if (bettergiInfo().source !== 'env') throw new Error(`source 应为 env：${bettergiInfo().source}`);
+    delete process.env.DSH_GAME_DAILY_BETTERGI_ROOT;
+    if (bettergiInfo().root === envRoot) throw new Error('删掉环境变量后不该还命中它');
+    const written = writePointer('bettergi', `"${pointerRoot}\\\\"`);
+    if (!written.ok) throw new Error(`writePointer 失败：${written.error}`);
+    if (readPointer(pointerPath('bettergi')) !== pointerRoot) throw new Error('书签写入未归一化');
+    const viaPointer = bettergiInfo();
+    if (viaPointer.root !== pointerRoot || viaPointer.source !== 'pointer') {
+      throw new Error(`书签应优先于探测：${viaPointer.root}（${viaPointer.source}）`);
+    }
+    // 用户填 exe 路径当环境变量也要能用
+    process.env.DSH_GAME_DAILY_BETTERGI = path.join(envRoot, 'BetterGI.exe');
+    delete process.env.DSH_GAME_DAILY_BETTERGI_ROOT;
+    if (bettergiInfo().root !== envRoot) throw new Error('环境变量填 exe 路径时未归一成目录');
+    delete process.env.DSH_GAME_DAILY_BETTERGI;
+
+    // 5) 书签文件删掉后回落到探测；探测不到才给出厂默认值（这里不断言具体目录，机器差异太大）
+    fs.rmSync(pointerPath('bettergi'), { force: true });
+    const fallback = bettergiInfo();
+    if (fallback.source === 'env' || fallback.source === 'pointer') throw new Error(`无 env 无书签时来源不该是 ${fallback.source}`);
+    if (!bettergiRoot()) throw new Error('bettergiRoot 不该返回空串（要给出厂默认值兜底）');
+    if (fallback.ok) {
+      if (!/BetterGI\.exe$/i.test(fallback.exe)) throw new Error('bettergiInfo().exe 应指向 BetterGI.exe');
+    } else if (bettergiRoot() !== BETTERGI_ROOT_DEFAULT) {
+      throw new Error(`全部探测失败时应回落到出厂默认值：${bettergiRoot()}`);
+    }
+
+    // 6) 游戏 exe：环境变量优先，exe 存在才算命中
+    const fakeBh3 = path.join(tmp, 'BH3.exe');
+    fs.writeFileSync(fakeBh3, '');
+    process.env.DSH_GAME_DAILY_BH3_EXE = fakeBh3;
+    if (gameExe('hi') !== fakeBh3) throw new Error(`gameExe(hi) 未命中环境变量：${gameExe('hi')}`);
+    delete process.env.DSH_GAME_DAILY_BH3_EXE;
+    if (gameExe('hi') === fakeBh3) throw new Error('删掉环境变量后不该还命中假 exe');
+    if (!gameExeCandidates('zzz').some((item) => /ZenlessZoneZero\.exe$/i.test(item))) throw new Error('zzz 候选里没有 ZenlessZoneZero.exe');
+
+    // 7) dedupe 大小写/尾斜杠不敏感、保序
+    const deduped = dedupe(['D:\\Games\\X', 'd:\\games\\x\\', '', null, 'E:\\Y']);
+    if (deduped.length !== 2 || deduped[0] !== 'D:\\Games\\X' || deduped[1] !== 'E:\\Y') throw new Error(`dedupe 结果不对：${JSON.stringify(deduped)}`);
+
+    return `env→${envRoot ? 'ok' : 'skip'} / pointer / probe=${fallback.source} / normalize+dedupe ok`;
+  } finally {
+    process.env.DSH_GAME_DAILY_STATE_DIR = savedEnv.state ?? '';
+    if (savedEnv.state === undefined) delete process.env.DSH_GAME_DAILY_STATE_DIR;
+    const restore = (name, value) => { if (value === undefined) delete process.env[name]; else process.env[name] = value; };
+    restore('DSH_GAME_DAILY_BETTERGI_ROOT', savedEnv.bgi);
+    restore('DSH_GAME_DAILY_BETTERGI', savedEnv.alias);
+    restore('BETTERGI_ROOT', savedEnv.legacy);
+    restore('DSH_GAME_DAILY_BH3_EXE', savedEnv.bh3);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
     for (const item of results) console.log(`${item.ok ? 'PASS' : 'FAIL'}  ${item.name}  ${item.detail}`);
