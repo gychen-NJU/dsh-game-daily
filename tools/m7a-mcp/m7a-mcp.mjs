@@ -268,10 +268,15 @@ function resolveRoot() {
 
   // 4) 常见候选
   const home = os.homedir();
+  // 候选表只覆盖常见的几种装法；D:\Games、E:\Games 这类「按分区整理」的目录也很常见（issue #7）
   for (const candidate of [
     path.join(home, 'Games', 'March7thAssistant'),
     'D:\\March7thAssistant',
     'E:\\software\\March7thAssistant',
+    'D:\\software\\March7thAssistant',
+    'D:\\Games\\March7thAssistant',
+    'E:\\Games\\March7thAssistant',
+    'C:\\Games\\March7thAssistant',
   ]) {
     const found = consider(candidate, 'candidate');
     if (found) return { ok: true, ...found };

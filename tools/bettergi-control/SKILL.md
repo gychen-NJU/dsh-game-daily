@@ -102,6 +102,8 @@ pwsh -File $S\bgi-watch.ps1 -Mode groups -TimeoutMinutes 60  # 观察判定
 
 ## §3 脚本清单（都在 `scripts\`，PS 5.1，UTF-8 带 BOM）
 
+> **安装根不再写死**：所有脚本的 `-Root` 默认留空，按「环境变量（`DSH_GAME_DAILY_BETTERGI_ROOT` → `DSH_GAME_DAILY_BETTERGI` → `BETTERGI_ROOT`，填安装根或 `BetterGI.exe` 均可）→ 书签文件 `%USERPROFILE%\.dsh\game-daily\bettergi-root.txt` → 常见目录探测 → 旧默认 `D:\software\BetterGI`」自动解析，实现在同目录 `bgi-root.ps1`（缺这个文件时脚本退回旧默认值，兼容老安装）。平时**不用**手写 `-Root`，只有在要强制指定或排查解析结果时才传。
+
 | 脚本 | 用途 | 主要参数 | 退出码 |
 | --- | --- | --- | --- |
 | `bgi-status.ps1` | **只读**状态总览：进程/窗口/config 关键值/一条龙配置/最新日志尾部/进度文件 | `-Root` `-Json` `-Raw` `-TailLines 20` | 0=正常，2=安装根缺失 |

@@ -7,7 +7,7 @@
               指令按 | 与顶层 , 切分；方法名对照 Method.cs 白名单。
       · 挑选（SelectCombatScript）：命中当前队伍人数最多者优先；同分时角色表更短者优先；再同分保留先遇到的。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测，都找不到才用 D:\software\BetterGI
 .PARAMETER List
     列出 User\AutoFight 下所有策略及其角色表
 .PARAMETER Simulate
@@ -24,12 +24,22 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = '',
     [switch]$List,
     [string]$Simulate = '',
     [string]$Validate = '',
     [switch]$Json
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 若技能目录里没有 helper（旧版本安装），就退回旧的默认值，行为与以前一致。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Stop'
 

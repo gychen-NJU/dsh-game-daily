@@ -6,7 +6,7 @@
     User\OneDragon\*.json 摘要、最新日志尾部、task_progress / ExecutionRecords 列表、
     以及触发前的前置检查结论（阻断项）。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测，都找不到才用 D:\software\BetterGI
 .PARAMETER Json
     以 JSON 输出（供 agent / 后续 MCP 消费）
 .PARAMETER TailLines
@@ -18,11 +18,21 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = '',
     [switch]$Json,
     [switch]$Raw,
     [int]$TailLines = 20
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 若技能目录里没有 helper（旧版本安装），就退回旧的默认值，行为与以前一致。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Continue'
 $result = [ordered]@{
