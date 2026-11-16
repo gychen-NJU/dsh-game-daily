@@ -5,7 +5,7 @@
     回答"明天几点跑 / 昨天跑成没 / 包装器有没有替我清残留"这类问题。
     只读，不启动任何进程。
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测，都找不到才用 D:\software\BetterGI
 .PARAMETER Runs
     额外回溯最近几次一条龙运行（从日志里扫"一条龙和配置组任务结束"），默认 5 次。
 .PARAMETER Json
@@ -17,10 +17,20 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = '',
     [int]$Runs = 5,
     [switch]$Json
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 若技能目录里没有 helper（旧版本安装），就退回旧的默认值，行为与以前一致。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Continue'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }

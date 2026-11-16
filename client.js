@@ -472,7 +472,7 @@ window.__ModuleLoader__.load({
                   className: 'gd-input',
                   style: { minWidth: '320px' },
                   value: draft.gamePath,
-                  placeholder: game.engine === 'bettergi' ? 'D:\\software\\BetterGI\\BetterGI.exe' : '',
+                  placeholder: game.engine === 'bettergi' ? '留空自动探测；装了别处就填 BetterGI.exe 的完整路径' : '',
                   onChange: (event) => setField({ gamePath: event.target.value }),
                 })),
               h('p', { className: 'gd-detail' }, `${t('taskState')}：${taskNote}`),

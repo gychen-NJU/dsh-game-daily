@@ -111,12 +111,34 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 | `DSH_GAME_DAILY_STATE_DIR` | `$DSH_HOME/game-daily` | 覆盖状态目录 |
 | `DSH_GAME_DAILY_TASK_PREFIX` | `game-daily-` | 覆盖计划任务名前缀 |
 | `DSH_GAME_DAILY_BETTERGI_MCP` | 自动解析（见下） | bettergi MCP 服务器脚本的显式路径（优先级最高） |
-| `DSH_GAME_DAILY_BETTERGI` | `D:\software\BetterGI\BetterGI.exe` | BetterGI 安装位置（体检用） |
+| `DSH_GAME_DAILY_BETTERGI` | 自动探测（见下） | BetterGI 安装根或 `BetterGI.exe` 路径；别名 `DSH_GAME_DAILY_BETTERGI_ROOT` / `BETTERGI_ROOT`（体检、MCP、脚本共用） |
 | `DSH_GAME_DAILY_DSH_BIN` | 自动解析（见下） | 指定 dsh CLI 入口（`.cmd` 或 `lib/bin.js`），优先级最高 |
 | `DSH_GAME_DAILY_NODE` | 自动解析（见下） | 指定 `node.exe`（生成 MCP 配置 / 计划任务时用；PATH 里没有 node 时必设） |
 
 - **dsh CLI 怎么找**（`依赖体检 → dsh CLI` 会显示命中的「来源」）：`DSH_GAME_DAILY_DSH_BIN` → `%APPDATA%\npm`（老的默认位置）→ `PATH` 里的 dsh（含 DSH 自带的 `resources\runtime\cli\bin\dsh.cmd`）→ `npm prefix -g` → `/usr/local/lib`、`/usr/lib`。**DSH 装在非系统盘或用安装包装的机器**，靠前两档就能命中，不再被误判为「没装」。
 - **node 怎么找**：`DSH_GAME_DAILY_NODE` → `where node` → `Program Files\nodejs`、`%LOCALAPPDATA%\Programs\nodejs` → 当前进程。写进 MCP 配置与计划任务的是**解析出来的绝对路径**（不是裸 `node`），所以 PATH 里没有 node 也能把 MCP 起起来。
+
+## 安装路径（自动探测，可覆盖）
+
+插件**不假设**游戏或工具装在 `D:\software\...`。每个安装位置都按 **环境变量 → 书签文件 → 目录探测** 的顺序解析，第一个「真的存在」的候选胜出（BetterGI 要求目录里有 `BetterGI.exe`）：
+
+| 对象 | 环境变量（按优先级） | 书签文件（一行纯文本，写在 `$DSH_HOME/game-daily/` 下） | 探测范围 |
+| --- | --- | --- | --- |
+| BetterGI（体检 / bettergi-mcp / 全部 `bgi-*.ps1`） | `DSH_GAME_DAILY_BETTERGI_ROOT` → `DSH_GAME_DAILY_BETTERGI` → `BETTERGI_ROOT` | `bettergi-root.txt` | `C:`–`H:` 下的 `\software\BetterGI`、`\Games\BetterGI`、`\Program Files\BetterGI`、`\Tools\BetterGI`、`\<盘符>\BetterGI`；再试 `~\BetterGI`、`~\Games\BetterGI`、`~\Desktop\BetterGI`、`%LOCALAPPDATA%\Programs\BetterGI`；最后出厂默认 `D:\software\BetterGI` |
+| 原神 `YuanShen.exe` | `DSH_GAME_DAILY_GENSHIN_EXE` → `GENSHIN_EXE` → `YUANSHEN_EXE` | `genshin-exe-root.txt` | 各盘符下的 `miHoYo Launcher\games\Genshin Impact\Genshin Impact Game\`、`Games\miHoYo Launcher\...`、独立安装目录 |
+| 崩坏3 `BH3.exe` | `DSH_GAME_DAILY_BH3_EXE` → `BH3_EXE` | `hi-exe-root.txt` | 各盘符下的 `miHoYo Launcher\games\Honkai Impact 3\Games\`、`Games\miHoYo Launcher\...`、独立安装目录 |
+| 星穹铁道 `StarRail.exe` | `DSH_GAME_DAILY_SR_EXE` → `STARRAIL_EXE` | `sr-exe-root.txt` | 同上两种启动器布局 + 独立安装目录 |
+| 绝区零 `ZenlessZoneZero.exe` | `DSH_GAME_DAILY_ZZZ_GAME` → `ZZZ_OD_GAME_PATH` → `DSH_GAME_DAILY_ZZZ_EXE` | `zzz-exe-root.txt` | 同上两种启动器布局 + 独立安装目录 |
+| 绝区零一条龙 | `DSH_GAME_DAILY_ZZZ_ROOT` → `ZZZ_OD_ROOT` | `zzz-root.txt` | 各盘符下的 `\software\`、`\Games\`、`\Tools\` + `ZenlessZoneZero-OneDragon`；默认 `D:\software\ZenlessZoneZero-OneDragon` |
+| 三月七小助手 | `DSH_GAME_DAILY_M7A_ROOT` → `M7A_ROOT` | `m7a-root.txt` | 各盘符 `\software\`、`\Games\` + `March7thAssistant`；`~\Games\March7thAssistant` |
+| Maa_bbb（识宝小助手） | — | `maa-root.txt` | 各盘符 `\software\`、`\Games\` + `Maa_bbb`；`~\Maa_bbb` |
+
+说明：
+
+- 环境变量的值**填安装根或 `xxx.exe` 都可**（填 exe 会自动取所在目录；引号、末尾反斜杠也会被去掉）。
+- 书签文件就是纯文本一行安装根（例如 `D:\Games\BetterGI`），**不用改代码、不用改注册表**；也可以让插件自己写：状态目录里已有 `bettergi-root.txt` 就优先于目录探测。
+- 改了环境变量或书签后**重启 DSH**，面板和 `bgi_*` 工具才会用新路径（MCP 服务器只在启动时解析一次根目录）。
+- 面板「依赖体检」会直接写出最终采用的根目录、它的来源（环境变量 / 书签文件 / 目录探测）以及探测过的候选路径，便于排查。
 
 ## 随插件自带的工具（bettergi-mcp / bettergi-control）
 
@@ -125,7 +147,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 | 位置 | 内容 |
 | --- | --- |
 | `tools/bettergi-mcp/bettergi-mcp.mjs` | 原神 `bgi_*` 工具的 MCP 服务器（单文件、零依赖，约 100KB，29 个工具） |
-| `tools/bettergi-control/` | bettergi-control 技能（`SKILL.md` + `references/` + 15 个 `bgi-*.ps1`） |
+| `tools/bettergi-control/` | bettergi-control 技能（`SKILL.md` + `references/` + 17 个 `bgi-*.ps1`（含根目录解析 `bgi-root.ps1`）） |
 
 - **bettergi-mcp**：面板体检直接判「已就位（插件自带）」；点「注册 bettergi MCP」只是把一条 `dsh-mcp-client` 配置追加到当前 profile 的 `cordis.patch.yml`（先备份成 `cordis.patch.yml.bak-gd-<时间戳>`，写后回读校验，已存在则不重复写），重启 DSH 生效——**不需要联网**。
 - **bettergi-control**：体检发现 `%USERPROFILE%\.agents\skills\bettergi-control\SKILL.md` 缺失（或脚本不足 10 个）时，面板给出「安装 bettergi-control（插件自带）」按钮；点一下就是**纯本地目录拷贝**（旧目录备份成 `bettergi-control.bak-<时间戳>`），**不联网**。技能目录可用 `DSH_SKILLS_ROOT` 覆盖。
@@ -170,10 +192,10 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 
 ## 依赖与边界
 
-- 原神：BetterGI（默认 `D:\software\BetterGI`，可在面板里改）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（见上）；BetterGI 没有 HTTP API，只能命令行/配置组驱动。
+- 原神：BetterGI（安装根自动探测，可用 `DSH_GAME_DAILY_BETTERGI_ROOT` 或书签文件覆盖，见「安装路径」）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（见上）；BetterGI 没有 HTTP API，只能命令行/配置组驱动。
 - 崩坏3：`game-daily` 家族技能 + 提权助手（坐标点击被拦时按技能说明改用 computer-use）。
 - 崩坏：星穹铁道：三月七小助手（March7thAssistant，默认 `%USERPROFILE%\Games\March7thAssistant`，非默认目录时把路径写进 state 目录的 m7a-root.txt，或设 DSH_GAME_DAILY_M7A_ROOT）+ 插件自带的 `tools/m7a-control` 技能与 `tools/m7a-mcp`；M7A 负责全部画面识别与点击，Agent 只值守、异常介入和汇报。体检缺依赖时点「让 DSH 协助安装」由 Agent 下载、配置并引导用户本人确认免责声明；**安装目录一定先问你**，默认不装 C 盘（解压后约 1.5GB）。 体力用途固定为「培养目标」（角色突破/行迹材料、遗器与位面饰品）：`build_target_enable=true`，`instance_type` 与 `activity_gardenofplenty_instance_type` 都是「拟造花萼（赤）」，不打拟造花萼（金）的信用点与角色经验；要改这个口径只能由用户明确要求。
-- 绝区零：ZenlessZoneZero-OneDragon（默认 `D:\software\ZenlessZoneZero-OneDragon`，缺失可一键自动安装）+ 提权的一条龙后端；插件自带 MCP 与技能，游戏本体仍需自己安装。
+- 绝区零：ZenlessZoneZero-OneDragon（默认 `D:\software\ZenlessZoneZero-OneDragon`，可用 `DSH_GAME_DAILY_ZZZ_ROOT`/`ZZZ_OD_ROOT` 或书签覆盖，缺失可一键自动安装）+ 提权的一条龙后端；插件自带 MCP 与技能，游戏本体仍需自己安装。
 - 没有「后台挂机」：原神必须可见且前台、16:9 ≥1920×1080；锁屏会失败。
 - 注册计划任务、跑 BetterGI 需要一次 UAC；面板会在按钮旁说明。
 - 账号风险由使用方式决定：官方条款把第三方软件/模拟操作列为封号理由之一，低调使用。

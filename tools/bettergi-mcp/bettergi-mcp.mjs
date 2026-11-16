@@ -12,7 +12,9 @@
  *       → 工具名形如 mcp__bettergi__bgi_collect_material
  *
  * 环境变量（都可省略）：
- *   BETTERGI_ROOT      BetterGI 安装根，默认 D:\software\BetterGI
+ *   BETTERGI_ROOT      BetterGI 安装根；别名 DSH_GAME_DAILY_BETTERGI_ROOT / DSH_GAME_DAILY_BETTERGI。
+ *                      值可以是安装根，也可以直接是 BetterGI.exe 的完整路径。
+ *                      都没设时按：<stateDir>/bettergi-root.txt 书签 → 常见目录探测 → 出厂默认 D:\software\BetterGI
  *   BETTERGI_SKILL_DIR bettergi-control skill 的 scripts 目录
  *   BETTERGI_REPO_RAW  官方路线仓库 raw 前缀（默认 GitHub；CNB 在本机 DNS 失败）
  */
@@ -24,7 +26,67 @@ import path from 'node:path';
 import { evaluateRunGate, statusForGate } from './run-gate.mjs';
 
 // ─────────────────────────── 常量与路径 ───────────────────────────
-const BGI_ROOT = process.env.BETTERGI_ROOT || 'D:\\software\\BetterGI';
+// ── 安装根解析 ────────────────────────────────────────────────
+// 约定与 lib/gamepaths.mjs 一致（本文件要能单独 vendored，所以内联一份，不 import lib）：
+//   环境变量 → <stateDir>/bettergi-root.txt 书签 → 常见目录探测 → 出厂默认值
+// 探针（BetterGI.exe 存在）很重要：候选里常有同名空目录，不能凭名字认。
+const ROOT_ENV_NAMES = ['DSH_GAME_DAILY_BETTERGI_ROOT', 'DSH_GAME_DAILY_BETTERGI', 'BETTERGI_ROOT'];
+const ROOT_DEFAULT = 'D:\\software\\BetterGI';
+const ROOT_PROBE_DRIVES = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:'];
+
+function rootStateDir() {
+  return process.env.DSH_GAME_DAILY_STATE_DIR || path.join(homedir(), '.dsh', 'game-daily');
+}
+
+function rootPointerFile() {
+  return path.join(rootStateDir(), 'bettergi-root.txt');
+}
+
+/** exe → 目录；顺带去掉引号与尾斜杠（配置里写 exe、带引号、带反斜杠都能用）。 */
+function normalizeRoot(value) {
+  const raw = String(value == null ? '' : value).trim().replace(/^["']+/, '').replace(/["']+$/, '').replace(/[\\/]+$/, '');
+  if (!raw) return '';
+  return /\.exe$/i.test(raw) ? path.win32.dirname(raw) : raw;
+}
+
+function isBgiRoot(dir) {
+  if (!dir) return false;
+  try { return existsSync(path.join(dir, 'BetterGI.exe')); } catch { return false; }
+}
+
+function readRootPointer() {
+  try { return normalizeRoot(readFileSync(rootPointerFile(), 'utf8').replace(/^\uFEFF/, '').trim()); } catch { return ''; }
+}
+
+function probeRoots() {
+  const list = [];
+  for (const drive of ROOT_PROBE_DRIVES) {
+    for (const mid of ['software', 'Games', 'Program Files', 'Tools']) list.push(path.win32.join(drive, mid, 'BetterGI'));
+    list.push(path.win32.join(drive, 'BetterGI'));
+  }
+  list.push(path.join(homedir(), 'BetterGI'), path.join(homedir(), 'Games', 'BetterGI'));
+  if (process.env.LOCALAPPDATA) list.push(path.join(process.env.LOCALAPPDATA, 'Programs', 'BetterGI'));
+  list.push(ROOT_DEFAULT);
+  return list;
+}
+
+/** 都探测不到时仍返回出厂默认值：报错里给一个具体路径比给空串有用。 */
+function resolveBgiRoot() {
+  for (const name of ROOT_ENV_NAMES) {
+    const dir = normalizeRoot(process.env[name]);
+    if (isBgiRoot(dir)) return { root: dir, source: `环境变量 ${name}` };
+  }
+  const pointer = readRootPointer();
+  if (isBgiRoot(pointer)) return { root: pointer, source: `书签 ${rootPointerFile()}` };
+  for (const dir of probeRoots()) {
+    if (isBgiRoot(dir)) return { root: dir, source: '目录探测' };
+  }
+  return { root: ROOT_DEFAULT, source: `出厂默认（未找到 BetterGI；可设 DSH_GAME_DAILY_BETTERGI_ROOT，或把安装根写进 ${rootPointerFile()}）` };
+}
+
+const BGI_RESOLVED = resolveBgiRoot();
+const BGI_ROOT = BGI_RESOLVED.root;
+const BGI_ROOT_SOURCE = BGI_RESOLVED.source;
 const SKILL_DIR =
   process.env.BETTERGI_SKILL_DIR || path.join(homedir(), '.agents', 'skills', 'bettergi-control', 'scripts');
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
@@ -83,6 +145,9 @@ async function statusBrief() {
 function preflightLines(st) {
   const out = [];
   if (!st) return out;
+  if (st.rootExists === false) {
+    out.push(`⛔ BetterGI 安装根不存在：${st.root}（本次解析来源：${BGI_ROOT_SOURCE}）→ 设 DSH_GAME_DAILY_BETTERGI_ROOT=<安装根>，或把根目录写进 ${rootPointerFile()}，然后重启 DSH。`);
+  }
   if (st.bgiRunning) {
     out.push('⛔ BetterGI 正在运行：命令行触发会被单实例吞掉（只转发不执行）——请先退出 BetterGI，或用包装器 _daily_runner.ps1。');
   }
@@ -103,7 +168,26 @@ function preflightLines(st) {
 // ─────────────────────────── 基础工具 ───────────────────────────
 const log = (...a) => process.stderr.write('[bettergi-mcp] ' + a.join(' ') + '\n');
 
+/**
+ * 这些脚本没有 -Root 参数；run-utf8.ps1 是按参数名 splat 的，硬塞会报
+ * "A parameter cannot be found that matches parameter name 'Root'"。
+ */
+const SCRIPTS_WITHOUT_ROOT = new Set(['bgi-focus-game.ps1']);
+
+/**
+ * 统一把解析到的安装根传下去。
+ * 历史问题（issue #7）：MCP 自己算出了根，却从不传给技能脚本，脚本各自用写死的默认值，
+ * 于是「装在非默认目录」= 所有工具都对着不存在的路径干活。这里补 -Root；调用方显式给过就不覆盖。
+ */
+function withRootArg(scriptName, args) {
+  if (!Array.isArray(args)) return args;
+  if (SCRIPTS_WITHOUT_ROOT.has(scriptName)) return args;
+  if (args.some((a) => typeof a === 'string' && /^-\s*root$/i.test(a))) return args;
+  return ['-Root', BGI_ROOT, ...args];
+}
+
 function callScript(scriptName, args = [], timeoutMs = 60000) {
+  const effectiveArgs = withRootArg(scriptName, args);
   return new Promise((resolve) => {
     const scriptPath = path.join(SKILL_DIR, scriptName);
     if (!existsSync(scriptPath)) {
@@ -114,7 +198,7 @@ function callScript(scriptName, args = [], timeoutMs = 60000) {
     // 必须让启动器读载荷后按参数名建哈希表再 splat（见 run-utf8.ps1 顶部注释）。
     const payloadPath = path.join(tmpdir(), `bgi-mcp-${process.pid}-${++payloadSeq}.json`);
     try {
-      writeFileSync(payloadPath, JSON.stringify({ script: scriptPath, args }), 'utf8');
+      writeFileSync(payloadPath, JSON.stringify({ script: scriptPath, args: effectiveArgs }), 'utf8');
     } catch (e) {
       resolve({ code: -3, stdout: '', stderr: `无法写入调用载荷：${e.message}` });
       return;
@@ -1660,4 +1744,4 @@ process.stdin.on('data', (chunk) => {
   }
 });
 process.stdin.on('end', () => process.exit(0));
-log(`已启动：root=${BGI_ROOT} skill=${SKILL_DIR} tools=${TOOLS.length}`);
+log(`已启动：root=${BGI_ROOT}（来源：${BGI_ROOT_SOURCE}） skill=${SKILL_DIR} tools=${TOOLS.length}`);
