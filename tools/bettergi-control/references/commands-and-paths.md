@@ -1,7 +1,7 @@
 # BetterGI 命令行 / 路径 / 数据格式速查
 
-> 依据：BetterGI **0.66.0**（本机 `D:\software\BetterGI`）+ 源码 `0.66.2-alpha.2` 快照核对。
-> 所有路径以 `<BGI>` 代表安装根 `D:\software\BetterGI`。
+> 依据：BetterGI **0.66.0**（本机实测；`D:\software\BetterGI`）+ 源码 `0.66.2-alpha.2` 快照核对。
+> 所有路径以 `<BGI>` 代表安装根：**自动解析**（环境变量 → 书签 `%USERPROFILE%\.dsh\game-daily\bettergi-root.txt` → 盘符探测 → 出厂默认 `D:\software\BetterGI`），实现在 `scripts/bgi-root.ps1`；排查解析结果用 `bgi-status.ps1` 输出的 `root` / `rootExists`。
 
 ## 1. 命令行（全部动作，就这 5 个）
 

@@ -141,7 +141,7 @@
 
 ### 原神（engine = bettergi）
 
-- 依赖：BetterGI（默认 `D:\software\BetterGI`）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（MCP 服务器，29 个工具）。
+- 依赖：BetterGI（安装根自动解析：环境变量 → 书签 → 盘符探测 → 出厂默认 `D:\software\BetterGI`）+ **随插件自带**的 bettergi-control 技能与 bettergi-mcp（MCP 服务器，29 个工具）。
 - 流程：`bgi_doctor` → `bgi_status` → `bgi_focus_game`（还原窗口并置前）→ `bgi_run_one_dragon {config:"日常"}` → `bgi_watch` → `bgi_results`。
 - 一条龙 6 个任务（来自 `User\OneDragon\日常.json` 的 TaskOrder）：
   1. 领取邮件
@@ -188,7 +188,7 @@
 | `automation/run-headless.log` | 计划任务侧日志 |
 | `automation/guard-<game>.log` / `.stop` | 前台守护日志与停止旗标 |
 | `tools/bettergi-mcp/bettergi-mcp.mjs` | 随包自带的 MCP 服务器（原神 `bgi_*`，29 个工具） |
-| `tools/bettergi-control/` | 随包自带的 bettergi-control 技能（`SKILL.md` + 15 个脚本） |
+| `tools/bettergi-control/` | 随包自带的 bettergi-control 技能（`SKILL.md` + 17 个脚本，含根目录解析 `bgi-root.ps1`） |
 | `tools/m7a-mcp/m7a-mcp.mjs` | 随包自带的 M7A MCP（崩铁，9 个工具，直调 `m7a.exe`） |
 | `tools/maa-bbb-mcp/maa-bbb-mcp.mjs` | 随包自带的 Maa_bbb MCP（崩坏3，10 个 `maa_bbb_*` 工具，直调 `mab.exe`） |
 | `tools/maa-bbb-control/` | 随包自带的 maa-bbb-control 技能（`SKILL.md` + `scripts/maa-bbb.ps1`） |
@@ -230,7 +230,7 @@
 3. **为什么不改 BetterGI 配置？** BetterGI 运行中会把内存里的配置回写覆盖；插件只调用 `bgi_*` 工具/CLI，不写它的配置文件。
 4. **为什么 bettergi-mcp 要单独发仓库、按需下载？** 它是可复用的独立服务器（92KB 单文件、零依赖），塞进插件包会让两边升级互相拖累。插件按 `env → vendor 下载副本 → 同级工作区` 解析，缺失时按钮一键补。
 
-5. **为什么 bettergi-control 技能也单独发仓库？** 同一个理由：技能是用户自己的、也会独立演进（15 个脚本）；插件只负责「缺了就从 GitHub 装」，不把 19 个文件复制进插件包。安装走 zip 下载 + 校验 + 原子替换，旧版本自动备份。
+5. **为什么 bettergi-control 技能也单独发仓库？** 同一个理由：技能是用户自己的、也会独立演进（17 个脚本）；插件只负责「缺了就从 GitHub 装」，不把整套文件复制进插件包。安装走 zip 下载 + 校验 + 原子替换，旧版本自动备份。
 5. **为什么没人值守还要能「停」？** 计划任务是 `InteractiveToken + RunLevel Highest`；插件进程非提权杀不掉提权子进程，所以停止走「写标志 + 计划任务侧 taskkill」。
 6. **为什么有「演练模式」？** 第一次配置时最需要验证的是链路（headless 能不能起来、MCP 有没有、窗口够不够大），不是游戏本身；dry 只读诊断、照常写报告。
 7. **为什么默认关闭？** 这是会操作游戏、要弹 UAC、有封号话题的功能，默认必须是关的，用户点开才生效。

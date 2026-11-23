@@ -1,6 +1,6 @@
-﻿# BetterGI 配方集（10 个，可直接照抄）
+# BetterGI 配方集（10 个，可直接照抄）
 
-> 约定：`$S = %USERPROFILE%\.agents\skills\bettergi-control\scripts`；`<BGI> = D:\software\BetterGI`。
+> 约定：`$S = %USERPROFILE%\.agents\skills\bettergi-control\scripts`；`<BGI>` = 自动解析出的安装根（出厂默认 `D:\software\BetterGI`；拿不准就先跑 `bgi-status.ps1` 看 `root`）。
 > 每个配方都**先跑前置检查**：`pwsh -File $S\bgi-status.ps1`（只读）。
 > 需要改文件的配方：**先让用户从托盘退出 BetterGI**（运行中会被回写覆盖）。
 

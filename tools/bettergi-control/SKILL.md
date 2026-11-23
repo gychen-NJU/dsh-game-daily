@@ -174,6 +174,6 @@ pwsh -File $S\bgi-watch.ps1 -Mode groups -TimeoutMinutes 60  # 观察判定
 
 ## §7 版本自检（长期维护用）
 
-1. `(Get-Item 'D:\software\BetterGI\BetterGI.exe').VersionInfo.ProductVersion` 应为 `0.66.x`。
+1. `(Get-Item 'D:\software\BetterGI\BetterGI.exe').VersionInfo.ProductVersion` 应 ≥ `0.66.x`（本机 0.66.0；装更新版本也正常，脚本只依赖 CLI 与 `User\` 配置布局）。
 2. `User\config.json` 顶层键与本 skill 提到的键做差集；出现未知键或缺失键 → 先复核本 skill 与指南。
 3. 任一处不符：先跑 `bgi-status.ps1` 与 `bgi-strategy.ps1 -List` 看结构是否变化，再决定是否更新脚本，不要凭猜改配置。
