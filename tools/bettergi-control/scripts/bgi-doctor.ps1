@@ -16,7 +16,7 @@
       ⑦ 一条龙配置：列出配置名与任务顺序
       ⑧ 采集闭环件：MCP 服务器文件与 cordis.patch.yml 注册、`_daily_runner.ps1` 包装器
 .PARAMETER Root
-    BetterGI 安装根，默认 D:\software\BetterGI
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测，都找不到才用 D:\software\BetterGI
 .PARAMETER Json
     输出机器可读 JSON
 .PARAMETER Material
@@ -28,10 +28,20 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Root = 'D:\software\BetterGI',
+    [string]$Root = '',
     [switch]$Json,
     [string]$Material = ''
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 若技能目录里没有 helper（旧版本安装），就退回旧的默认值，行为与以前一致。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Continue'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }

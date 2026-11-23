@@ -19,6 +19,8 @@
     优雅关闭的等待秒数（默认 12）。
 .PARAMETER DryRun
     只报告将关闭哪些进程，不动手。
+.PARAMETER Root
+    BetterGI 安装根；省略时按 环境变量 → 书签 → 常见目录 探测。
 .PARAMETER Json
     机器可读 JSON。
 .EXAMPLE
@@ -35,9 +37,20 @@ param(
     [int]$GraceSeconds = 12,
     [string]$GameProcess = 'YuanShen',
     [string]$BgiProcess = 'BetterGI',
+    [string]$Root = '',
     [switch]$DryRun,
     [switch]$Json
 )
+
+# 安装根解析：-Root > 环境变量 > 书签 > 常见目录探测（逻辑集中在 bgi-root.ps1）。
+# 只有「用计划任务免 UAC 关 BetterGI」这条分支需要它（找 _run_request.json）。
+$__bgiRootHelper = Join-Path $PSScriptRoot 'bgi-root.ps1'
+if (Test-Path -LiteralPath $__bgiRootHelper) {
+    . $__bgiRootHelper
+    $Root = Resolve-BgiRoot -Root $Root
+} elseif (-not $Root) {
+    $Root = 'D:\software\BetterGI'
+}
 
 $ErrorActionPreference = 'Continue'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
@@ -137,7 +150,7 @@ if (@($results | Where-Object { $_.outcome -eq 'access-denied' }).Count -gt 0) {
     } elseif ($null -eq $task) {
         $taskStop = [ordered]@{ attempted = $false; note = "计划任务「$taskName」不存在，无法免 UAC 关闭" }
     } else {
-        $rootBgi = 'D:\software\BetterGI'
+        $rootBgi = $Root
         $reqPath = Join-Path $rootBgi '_run_request.json'
         $resPath = Join-Path $rootBgi '_run_request.result.json'
         $stopName = switch ($Target) { 'game' { 'game' } 'bettergi' { 'bettergi' } default { 'both' } }

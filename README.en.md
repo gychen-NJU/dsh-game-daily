@@ -111,12 +111,34 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
 | `DSH_GAME_DAILY_STATE_DIR` | `$DSH_HOME/game-daily` | Override the state directory |
 | `DSH_GAME_DAILY_TASK_PREFIX` | `game-daily-` | Override the scheduled-task name prefix |
 | `DSH_GAME_DAILY_BETTERGI_MCP` | auto-resolved (see below) | Explicit path to the bettergi MCP server script (highest priority) |
-| `DSH_GAME_DAILY_BETTERGI` | `D:\software\BetterGI\BetterGI.exe` | BetterGI install path (used by the dependency check) |
+| `DSH_GAME_DAILY_BETTERGI` | auto-detected (see below) | BetterGI install root or `BetterGI.exe` path; aliases `DSH_GAME_DAILY_BETTERGI_ROOT` / `BETTERGI_ROOT` (dependency check, MCP, scripts) |
 | `DSH_GAME_DAILY_DSH_BIN` | auto-resolved (see below) | Explicit dsh CLI entry (`.cmd` or `lib/bin.js`), highest priority |
 | `DSH_GAME_DAILY_NODE` | auto-resolved (see below) | Explicit `node.exe` (used for MCP config / scheduled tasks; set it when node is not on PATH) |
 
 - **How the dsh CLI is found** (the dependency check shows the matching "source"): `DSH_GAME_DAILY_DSH_BIN` → `%APPDATA%\npm` (legacy default) → dsh on `PATH` (including the `resources\runtime\cli\bin\dsh.cmd` shipped with DSH) → `npm prefix -g` → `/usr/local/lib`, `/usr/lib`. Machines where **DSH lives on a non-system drive or was installed by the installer** hit one of the first two tiers instead of being reported as "not installed".
 - **How node is found**: `DSH_GAME_DAILY_NODE` → `where node` → `Program Files\nodejs`, `%LOCALAPPDATA%\Programs\nodejs` → current process. MCP configs and scheduled tasks store the **resolved absolute path** (no bare `node`), so MCP starts even when node is missing from PATH.
+
+## Install paths (auto-detected, overridable)
+
+The plugin **does not assume** any game or tool lives in `D:\software\...`. Every install location is resolved as **env var → pointer file → directory probe**, and the first candidate that actually exists wins (BetterGI requires a `BetterGI.exe` inside):
+
+| Target | Environment variables (in order) | Pointer file (one plain-text line, under `$DSH_HOME/game-daily/`) | Probe scope |
+| --- | --- | --- | --- |
+| BetterGI (dependency check / bettergi-mcp / all `bgi-*.ps1`) | `DSH_GAME_DAILY_BETTERGI_ROOT` → `DSH_GAME_DAILY_BETTERGI` → `BETTERGI_ROOT` | `bettergi-root.txt` | `\software\BetterGI`, `\Games\BetterGI`, `\Program Files\BetterGI`, `\Tools\BetterGI`, `\<drive>\BetterGI` on `C:`–`H:`; then `~\BetterGI`, `~\Games\BetterGI`, `~\Desktop\BetterGI`, `%LOCALAPPDATA%\Programs\BetterGI`; finally the factory default `D:\software\BetterGI` |
+| Genshin `YuanShen.exe` | `DSH_GAME_DAILY_GENSHIN_EXE` → `GENSHIN_EXE` → `YUANSHEN_EXE` | `genshin-exe-root.txt` | `miHoYo Launcher\games\Genshin Impact\Genshin Impact Game\`, `Games\miHoYo Launcher\...`, standalone installs, on every drive |
+| Honkai Impact 3 `BH3.exe` | `DSH_GAME_DAILY_BH3_EXE` → `BH3_EXE` | `hi-exe-root.txt` | `miHoYo Launcher\games\Honkai Impact 3\Games\`, `Games\miHoYo Launcher\...`, standalone installs |
+| Honkai: Star Rail `StarRail.exe` | `DSH_GAME_DAILY_SR_EXE` → `STARRAIL_EXE` | `sr-exe-root.txt` | the same two launcher layouts + standalone installs |
+| Zenless Zone Zero `ZenlessZoneZero.exe` | `DSH_GAME_DAILY_ZZZ_GAME` → `ZZZ_OD_GAME_PATH` → `DSH_GAME_DAILY_ZZZ_EXE` | `zzz-exe-root.txt` | the same two launcher layouts + standalone installs |
+| ZZZ OneDragon | `DSH_GAME_DAILY_ZZZ_ROOT` → `ZZZ_OD_ROOT` | `zzz-root.txt` | `\software\`, `\Games\`, `\Tools\` + `ZenlessZoneZero-OneDragon` on every drive; default `D:\software\ZenlessZoneZero-OneDragon` |
+| March7thAssistant | `DSH_GAME_DAILY_M7A_ROOT` → `M7A_ROOT` | `m7a-root.txt` | `\software\`, `\Games\` + `March7thAssistant` on every drive; `~\Games\March7thAssistant` |
+| Maa_bbb | — | `maa-root.txt` | `\software\`, `\Games\` + `Maa_bbb` on every drive; `~\Maa_bbb` |
+
+Notes:
+
+- An env var may hold **either the install root or the `xxx.exe` path** (quotes and trailing backslashes are stripped, an exe path is reduced to its directory).
+- A pointer file is just one line of plain text (e.g. `D:\Games\BetterGI`) — no code, no registry. The plugin can also write one itself; an existing `bettergi-root.txt` beats directory probing.
+- After changing an env var or a pointer file, **restart DSH**: the panel and the `bgi_*` tools re-resolve paths only at startup (the MCP server resolves its root once).
+- The dependency check reports the resolved root, where it came from (env var / pointer file / directory probe) and the candidates it tried, which makes misconfiguration easy to spot.
 
 ## Bundled tools (bettergi-mcp / bettergi-control)
 
@@ -125,7 +147,7 @@ So that "install the plugin = all tools present", both Genshin companion tools *
 | Location | Content |
 | --- | --- |
 | `tools/bettergi-mcp/bettergi-mcp.mjs` | the MCP server exposing the Genshin `bgi_*` tools (single file, zero dependencies, ~100KB, 29 tools) |
-| `tools/bettergi-control/` | the bettergi-control skill (`SKILL.md` + `references/` + 15 `bgi-*.ps1` scripts) |
+| `tools/bettergi-control/` | the bettergi-control skill (`SKILL.md` + `references/` + 17 `bgi-*.ps1` scripts (including the root resolver `bgi-root.ps1`)) |
 
 - **bettergi-mcp**: the dependency check reports "ready (bundled)"; **Register bettergi MCP** just appends a `dsh-mcp-client` entry to the current profile's `cordis.patch.yml` (backed up as `cordis.patch.yml.bak-gd-<timestamp>`, read back and verified, skipped when already present). Restart DSH to load it — **no network access needed**.
 - **bettergi-control**: when `%USERPROFILE%\.agents\skills\bettergi-control\SKILL.md` is missing (or has fewer than 10 scripts), the panel shows **Install bettergi-control (bundled)**; one click is a **pure local copy** (the old directory is backed up as `bettergi-control.bak-<timestamp>`) — **no network access needed**. Override the skill directory with `DSH_SKILLS_ROOT`.
@@ -169,8 +191,8 @@ The settings panel opens with a version bar that **reads the latest `package.jso
 
 ## Dependencies and boundaries
 
-- Genshin: BetterGI (default `D:\software\BetterGI`, editable in the panel) + **bundled** bettergi-control skill and bettergi-mcp (above). BetterGI has no HTTP API — it can only be driven by command line / script groups.
-- Zenless Zone Zero: ZenlessZoneZero-OneDragon (default `D:\software\ZenlessZoneZero-OneDragon`, auto-installable when missing) + an elevated one-dragon backend. The MCP server and skill ship with this plugin; the game itself still has to be installed.
+- Genshin: BetterGI (install root auto-detected; override with `DSH_GAME_DAILY_BETTERGI_ROOT` or a pointer file — see "Install paths") + **bundled** bettergi-control skill and bettergi-mcp (above). BetterGI has no HTTP API — it can only be driven by command line / script groups.
+- Zenless Zone Zero: ZenlessZoneZero-OneDragon (default `D:\software\ZenlessZoneZero-OneDragon`, overridable with `DSH_GAME_DAILY_ZZZ_ROOT`/`ZZZ_OD_ROOT` or a pointer file, auto-installable when missing) + an elevated one-dragon backend. The MCP server and skill ship with this plugin; the game itself still has to be installed.
 - HI: the `game-daily` skill family + the elevation helper (switch to computer-use per the skill docs when synthetic clicks are filtered).
 - HSR: March7thAssistant (M7A) with the bundled `tools/m7a-mcp` and `tools/m7a-control`; the dependency check reports `m7a` / `m7a-skill` / `m7a-mcp` and the fix button opens an agent session that installs and configures it. The install directory is always asked first (C: is avoided by default; about 1.5 GB after extraction). Trailblaze power is reserved for in-game Build Targets (ascension/trace materials, relics and planar ornaments): `build_target_enable=true`, with both `instance_type` and `activity_gardenofplenty_instance_type` set to "Calyx (Crimson)"; Golden credit/EXP calyx is never farmed unless the user explicitly asks.
 - There is **no background/AFK mode**: Genshin must be visible and in the foreground at 16:9 ≥ 1920×1080; a locked screen will fail.
