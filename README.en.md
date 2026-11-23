@@ -98,6 +98,7 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
 
 - State and run artifacts: `$DSH_HOME/game-daily/` (default `%USERPROFILE%\.dsh\game-daily`)
   - `state.json` (atomic writes), `runs/<game>/<runId>/`, `automation/{tasks.json,game-daily-register.ps1,register-result.json,headless-overlay.yml,run-headless.log}`, `notifications.log`
+- When headless exits abnormally without writing `report.json`, the runner writes a **fallback report** (`generatedBy: "runner-fallback"`) carrying `exit: {code, signal, durationMs}`, `logFile` (full child stdout/stderr), `runDir` and `sessionFile` (pointer to that run's DSH session file) in addition to the exit code — read those three first, then `notes`.
 
 ## Environment variables
 
@@ -111,6 +112,11 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
 | `DSH_GAME_DAILY_TASK_PREFIX` | `game-daily-` | Override the scheduled-task name prefix |
 | `DSH_GAME_DAILY_BETTERGI_MCP` | auto-resolved (see below) | Explicit path to the bettergi MCP server script (highest priority) |
 | `DSH_GAME_DAILY_BETTERGI` | `D:\software\BetterGI\BetterGI.exe` | BetterGI install path (used by the dependency check) |
+| `DSH_GAME_DAILY_DSH_BIN` | auto-resolved (see below) | Explicit dsh CLI entry (`.cmd` or `lib/bin.js`), highest priority |
+| `DSH_GAME_DAILY_NODE` | auto-resolved (see below) | Explicit `node.exe` (used for MCP config / scheduled tasks; set it when node is not on PATH) |
+
+- **How the dsh CLI is found** (the dependency check shows the matching "source"): `DSH_GAME_DAILY_DSH_BIN` → `%APPDATA%\npm` (legacy default) → dsh on `PATH` (including the `resources\runtime\cli\bin\dsh.cmd` shipped with DSH) → `npm prefix -g` → `/usr/local/lib`, `/usr/lib`. Machines where **DSH lives on a non-system drive or was installed by the installer** hit one of the first two tiers instead of being reported as "not installed".
+- **How node is found**: `DSH_GAME_DAILY_NODE` → `where node` → `Program Files\nodejs`, `%LOCALAPPDATA%\Programs\nodejs` → current process. MCP configs and scheduled tasks store the **resolved absolute path** (no bare `node`), so MCP starts even when node is missing from PATH.
 
 ## Bundled tools (bettergi-mcp / bettergi-control)
 
