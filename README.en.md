@@ -207,10 +207,10 @@ The plugin installs from GitHub source as-is; publish it to npm to get a downloa
 
 - Workflow: `.github/workflows/publish.yml` — publishing a GitHub Release (tag `vX.Y.Z`) publishes the package; manual runs default to a dry run.
 - One-time setup: add `NPM_TOKEN` under **Settings → Secrets and variables → Actions** — a npm **Granular Access Token** whose permission is **Read and write**, **not** `Read and write (stage only)` (stage-only tokens can only queue a staged release and `npm publish` fails with `E_STAGE_REQUIRED`); pick All packages and tick Bypass 2FA. With npm Trusted Publishing (OIDC) you can drop the secret; `id-token: write` in the workflow provides provenance.
-- Published: dsh-game-daily@0.3.4 (https://www.npmjs.com/package/dsh-game-daily , with a provenance attestation). Install with 
-pm i dsh-game-daily or dsh plugin add dsh-game-daily. Since 0.3.2 the watch prompt carries Honkai Impact 3rd **R10 recovery** (bounce back with OK -> Back -> Main Menu, then rerun the interrupted step from its first action).
+- Published: dsh-game-daily@0.3.13 (https://www.npmjs.com/package/dsh-game-daily , with a provenance attestation). Install with `npm i dsh-game-daily` or `dsh plugin add dsh-game-daily`.
 - Release: `npm version patch` (or minor / major) → `git push --follow-tags` → create a GitHub Release with the same tag.
-- The workflow runs `node test/smoke.mjs` and `npm publish --dry-run` first, then `npm publish --provenance`; `prepublishOnly` runs the smoke test again so a broken package cannot ship.
+- The workflow runs `node test/smoke.mjs` and `npm publish --dry-run` first, then `npm publish --provenance`, and finally polls the registry until the version is really visible; `prepublishOnly` runs the smoke test again so a broken package cannot ship.
+- **npm publishes asynchronously**: after the log prints `+ dsh-game-daily@x.y.z`, the version can stay invisible on the registry for several minutes (0.3.13 took about 10 minutes). Re-publishing the same version inside that window fails with `E409 Cannot publish over previously staged version` — that only means the first upload is still in the pipeline, so **do not retry and do not bump the version**; the workflow treats it as "already publishing" and keeps waiting for up to 20 minutes.
 - To appear in the [plugin catalog](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin), open a PR adding `data/plugins/<owner>__<repo>.yml` (already done for this plugin).
 ## Development
 

@@ -39,8 +39,41 @@ jobs:
       - name: Pack sanity (dry run)
         run: npm publish --provenance --access public --dry-run
 
+      # npm 发布是异步流水线：日志打印 `+ pkg@ver` 之后，registry 仍可能数分钟到十几分钟
+      # 才可见（0.3.13 实测约 10 分钟）。窗口期内重发同一版本会报
+      # `E409 … Cannot publish over previously staged version`——这只说明上一份还在流水线里，
+      # 不是发版失败：不要重试、不要改版本号，交给下面的校验步骤等待即可。
       - name: Publish to npm
         if: ${{ github.event_name == 'release' || inputs.dry_run == false }}
-        run: npm publish --provenance --access public
+        shell: pwsh
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          $out = npm publish --provenance --access public 2>&1 | Out-String
+          Write-Output $out
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          if ($out -match 'E(409|403)' -and $out -match '(staged|previously published) version') {
+            Write-Output "::notice::同一版本已在 npm 流水线中（E409），不重发，改为等待 registry 可见"
+            exit 0
+          }
+          exit 1
+
+      - name: Verify on registry
+        if: ${{ github.event_name == 'release' || inputs.dry_run == false }}
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $name = $pkg.name
+          $ver = $pkg.version
+          $url = "https://registry.npmjs.org/$($name -replace '/', '%2f')/$ver"
+          $deadline = (Get-Date).AddMinutes(20)
+          while ((Get-Date) -lt $deadline) {
+            try { $meta = Invoke-RestMethod $url -TimeoutSec 20 } catch { $meta = $null }
+            if ($meta -and $meta.version -eq $ver) {
+              Write-Output "::notice::npm 已可见 $name@$ver"
+              exit 0
+            }
+            Start-Sleep -Seconds 30
+          }
+          Write-Output "::error::等待 20 分钟后 registry 仍查不到 $name@$ver"
+          exit 1
