@@ -98,6 +98,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 
 - 状态与运行产物：`$DSH_HOME/game-daily/`（默认 `%USERPROFILE%\.dsh\game-daily`）
   - `state.json`（原子写）、`runs/<game>/<runId>/`、`automation/{tasks.json,game-daily-register.ps1,register-result.json,headless-overlay.yml,run-headless.log}`、`notifications.log`
+- headless 异常退出、没来得及写 `report.json` 时，runner 会写**兜底报告**（`generatedBy: "runner-fallback"`）：除退出码外还带 `exit: {code, signal, durationMs}`、`logFile`（子进程 stdout/stderr 全文）、`runDir` 与 `sessionFile`（当轮 DSH 会话文件指针）——先看这三样，再看 `notes`。
 
 ## 环境变量
 
@@ -111,6 +112,11 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 | `DSH_GAME_DAILY_TASK_PREFIX` | `game-daily-` | 覆盖计划任务名前缀 |
 | `DSH_GAME_DAILY_BETTERGI_MCP` | 自动解析（见下） | bettergi MCP 服务器脚本的显式路径（优先级最高） |
 | `DSH_GAME_DAILY_BETTERGI` | `D:\software\BetterGI\BetterGI.exe` | BetterGI 安装位置（体检用） |
+| `DSH_GAME_DAILY_DSH_BIN` | 自动解析（见下） | 指定 dsh CLI 入口（`.cmd` 或 `lib/bin.js`），优先级最高 |
+| `DSH_GAME_DAILY_NODE` | 自动解析（见下） | 指定 `node.exe`（生成 MCP 配置 / 计划任务时用；PATH 里没有 node 时必设） |
+
+- **dsh CLI 怎么找**（`依赖体检 → dsh CLI` 会显示命中的「来源」）：`DSH_GAME_DAILY_DSH_BIN` → `%APPDATA%\npm`（老的默认位置）→ `PATH` 里的 dsh（含 DSH 自带的 `resources\runtime\cli\bin\dsh.cmd`）→ `npm prefix -g` → `/usr/local/lib`、`/usr/lib`。**DSH 装在非系统盘或用安装包装的机器**，靠前两档就能命中，不再被误判为「没装」。
+- **node 怎么找**：`DSH_GAME_DAILY_NODE` → `where node` → `Program Files\nodejs`、`%LOCALAPPDATA%\Programs\nodejs` → 当前进程。写进 MCP 配置与计划任务的是**解析出来的绝对路径**（不是裸 `node`），所以 PATH 里没有 node 也能把 MCP 起起来。
 
 ## 随插件自带的工具（bettergi-mcp / bettergi-control）
 

@@ -9,7 +9,7 @@ import { probeDependencies, resolveDsh } from '../lib/deps.mjs';
 import { buildRunPrompt, buildInstallPrompt, buildReportPrompt } from '../lib/prompt.mjs';
 import { newRunId, summaryOf, listRuns, writeJson, metaPathOf, reportPathOf } from '../lib/report.mjs';
 import { queryTasks, taskStatus, refreshTaskInfo, readTaskDefinition, computeNextRun } from '../lib/tasks.mjs';
-import { guardScriptPath, guardStatus, aliveFromError, readRunner, ensureOverlay } from '../lib/runner.mjs';
+import { guardScriptPath, guardStatus, aliveFromError, readRunner, ensureOverlay, fallbackReport } from '../lib/runner.mjs';
 import { resolveBettergiMcp, vendorPath, bundledPath } from '../lib/bettergi-mcp.mjs';
 import { SKILL_REPOS, inspectSkill, skillInstallPath, installSkill, bundledSkillPath, installSkillGroup, runCoverage } from '../lib/skills.mjs';
 import { registerBettergiMcp, hasBettergiMcpRow, bettergiMcpPatchPath } from '../lib/mcp-register.mjs';
@@ -132,7 +132,30 @@ Promise.resolve()
       const dsh = resolveDsh();
       // GitHub-hosted runner 默认没有 dsh CLI：这属于环境差异，不算失败，只把结论写进 detail。
       if (!dsh) return '未安装 dsh CLI（CI 环境跳过）';
-      return `${dsh.kind} ${dsh.bin}`;
+      if (!dsh.source) throw new Error('resolveDsh 缺少 source 字段（体检要用它说明来源）');
+      return `${dsh.kind} ${dsh.bin}（来源 ${dsh.source}）`;
+    });
+    check('dsh resolve：显式 env + 带空格路径（#6）', () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gd dsh-'));
+      const prev = process.env.DSH_GAME_DAILY_DSH_BIN;
+      try {
+        const cmd = path.join(dir, 'dsh.cmd');
+        fs.writeFileSync(cmd, '@echo off\n', 'utf8');
+        process.env.DSH_GAME_DAILY_DSH_BIN = cmd;
+        const dsh = resolveDsh();
+        if (!dsh || dsh.kind !== 'cmd' || dsh.bin !== cmd || dsh.source !== 'env') {
+          throw new Error(`显式 env 没生效：${JSON.stringify(dsh)}`);
+        }
+        // 路径带空格时 spawn(shell:true) 必须拿到引号，否则 cmd.exe 会在第一个空格处截断。
+        if (!/^".*"$/.test(dsh.command) || !dsh.command.includes(cmd)) {
+          throw new Error(`带空格路径未加引号：${dsh.command}`);
+        }
+        return 'env 优先 + 空格路径已加引号';
+      } finally {
+        if (prev === undefined) delete process.env.DSH_GAME_DAILY_DSH_BIN;
+        else process.env.DSH_GAME_DAILY_DSH_BIN = prev;
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     });
     check('dependencies probe', () => {
       const probe = probeDependencies(['hi', 'sr']);
@@ -256,11 +279,61 @@ Promise.resolve()
         if (!first.ok || first.changed !== true) throw new Error(`首次注册应写入：${JSON.stringify(first)}`);
         const text = fs.readFileSync(file, 'utf8');
         if (!hasBettergiMcpRow(text)) throw new Error('写入后回读缺 bettergi MCP 行');
-        if (!/serverName: bettergi/.test(text) || !/command: node/.test(text)) throw new Error('补丁内容不完整');
+        if (!/serverName: bettergi/.test(text)) throw new Error('补丁内容不完整');
+        // #5：command 必须是 node 的绝对路径 —— PATH 里没有 node 时，裸 `node` 会让 MCP 直接起不来。
+        const cmdLine = text.split(/\r?\n/).find((line) => /^\s+command:/.test(line)) || '';
+        const cmdPath = cmdLine.replace(/^\s+command:\s*/, '').replace(/^'|'$/g, '');
+        if (!cmdPath || /^node$/i.test(cmdPath)) throw new Error(`MCP command 不能是裸 node：${cmdLine}`);
+        if (!/node(\.exe)?$/i.test(cmdPath) || !fs.existsSync(cmdPath)) {
+          throw new Error(`MCP command 不是可执行的 node 绝对路径：${cmdLine}`);
+        }
         if (first.backup && !fs.existsSync(first.backup)) throw new Error('缺少备份文件');
         const second = registerBettergiMcp({ profile: 'test', scriptPath: fake, home });
         if (!second.ok || second.changed !== false) throw new Error('重复注册不应再写');
-        return 'patch append + idempotent + backup ok';
+        // #5 存量场景：早先写进 profile 的是裸 `node` + 旧脚本路径，重注册时应就地修补且不动别的条目。
+        const legacy = [
+          '- insert:',
+          '    - id: bettergi-mcp',
+          "      name: '@deepseek-ai/dsh-mcp-client'",
+          '      config:',
+          '        serverName: bettergi',
+          '        command: node',
+          '        args:',
+          "          - 'D:/old/place/bettergi-mcp.mjs'",
+          '',
+          '- insert:',
+          '    - id: unrelated',
+          '      config:',
+          '        command: node',
+          '',
+        ].join('\n');
+        fs.writeFileSync(file, legacy, 'utf8');
+        const repaired = registerBettergiMcp({ profile: 'test', scriptPath: fake, home });
+        if (!repaired.ok || repaired.changed !== true || repaired.rewritten !== true) {
+          throw new Error(`存量条目应就地修补：${JSON.stringify(repaired)}`);
+        }
+        const fixed = fs.readFileSync(file, 'utf8');
+        const fixedLines = fixed.split(/\r?\n/);
+        const cmdIdx = fixedLines.findIndex((line) => /^\s+command:/.test(line));
+        const fixedCmd = String(fixedLines[cmdIdx] || '').replace(/^\s+command:\s*/, '').replace(/^'|'$/g, '');
+        if (!fixedCmd || /^node$/i.test(fixedCmd) || !fs.existsSync(fixedCmd)) {
+          throw new Error(`修补后 command 仍不可用：${fixedLines[cmdIdx]}`);
+        }
+        if (fixed.includes('D:/old/place/bettergi-mcp.mjs')) throw new Error('修补后 args 仍指向旧脚本路径');
+        if (!fixed.includes(fake.replace(/\\/g, '/'))) throw new Error('修补后 args 未指向当前脚本');
+        const unIdx = fixedLines.findIndex((line) => /id:\s*unrelated/.test(line));
+        let unCmd = '';
+        for (let i = unIdx + 1; i < fixedLines.length && !/^-\s/.test(fixedLines[i]); i += 1) {
+          if (/^\s+command:/.test(fixedLines[i])) {
+            unCmd = fixedLines[i];
+            break;
+          }
+        }
+        if (!/^\s+command:\s*node\s*$/.test(unCmd)) throw new Error(`无关条目不应被改：${unCmd}`);
+        if (repaired.backup && !fs.existsSync(repaired.backup)) throw new Error('修补缺少备份文件');
+        const third = registerBettergiMcp({ profile: 'test', scriptPath: fake, home });
+        if (!third.ok || third.changed !== false) throw new Error('修补后再次注册不应再写');
+        return 'patch append + idempotent + 存量修补 + backup ok';
       } finally {
         fs.rmSync(home, { recursive: true, force: true });
       }
@@ -555,6 +628,17 @@ check('三月七小助手（m7a）：overlay / prompt 对字符串 game id 也�
   if (!ov || ov.ok !== true || ov.hasMcp !== true) {
     throw new Error(`sr 的 overlay 没注入 m7a MCP：${JSON.stringify(ov)}`);
   }
+  // #5：overlay 里的 command 也必须是 node 绝对路径（同样不能是裸 node）。
+  const ovCmd = fs
+    .readFileSync(ov.file, 'utf8')
+    .split(/\r?\n/)
+    .find((line) => /^\s+command:/.test(line));
+  const ovPath = String(ovCmd || '')
+    .replace(/^\s+command:\s*/, '')
+    .replace(/'/g, '');
+  if (!ovPath || /^node$/i.test(ovPath) || !fs.existsSync(ovPath)) {
+    throw new Error(`overlay 的 MCP command 不是 node 绝对路径：${ovCmd}`);
+  }
   const prompt = buildRunPrompt({
     game: 'sr',
     mode: 'real',
@@ -571,6 +655,55 @@ check('三月七小助手（m7a）：overlay / prompt 对字符串 game id 也�
   if (!threw) throw new Error('缺 game 时 buildRunPrompt 应当直接报错');
   const bad = ensureOverlay({ stateDir: dir, game: null });
   if (!bad || bad.ok !== false) throw new Error('缺 game 时 ensureOverlay 应当返回 ok:false');
+});
+check('兜底报告（runner-fallback）带退出原因 / session 指针（#5）', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-sess-'));
+  const prevHome = process.env.DSH_HOME;
+  process.env.DSH_HOME = home;
+  try {
+    const sessDir = path.join(home, 'sessions', 'ws', 'sid-1');
+    fs.mkdirSync(sessDir, { recursive: true });
+    const sessFile = path.join(sessDir, 'session.jsonl.zstd');
+    fs.writeFileSync(sessFile, 'x', 'utf8');
+    const startedMs = Date.now() - 60 * 1000;
+    const rep = fallbackReport({
+      gameId: 'genshin',
+      mode: 'real',
+      runId: 't-1',
+      exitCode: 1,
+      signal: 'SIGTERM',
+      durationMs: 1234,
+      logTail: 'tail',
+      logFile: 'C:/tmp/run/stdout.log',
+      runDir: 'C:/tmp/run',
+      startedMs,
+    });
+    if (rep.status !== 'failed') throw new Error('非 0 退出应为 failed');
+    if (!rep.exit || rep.exit.code !== 1 || rep.exit.signal !== 'SIGTERM' || rep.exit.durationMs !== 1234) {
+      throw new Error(`exit 字段不对：${JSON.stringify(rep.exit)}`);
+    }
+    if (!rep.evidence.some((line) => String(line).includes('signal=SIGTERM'))) throw new Error('evidence 缺信号');
+    if (!/信号 SIGTERM/.test(rep.notes)) throw new Error(`notes 没解释信号：${rep.notes}`);
+    if (rep.sessionFile !== sessFile) throw new Error(`session 指针没找到：${rep.sessionFile}`);
+    if (rep.logFile !== 'C:/tmp/run/stdout.log' || rep.runDir !== 'C:/tmp/run') throw new Error('日志/目录指针缺失');
+    if (!rep.startedAt) throw new Error('startedAt 应回填起跑时间');
+    const quiet = fallbackReport({
+      gameId: 'genshin',
+      mode: 'dry',
+      runId: 't-2',
+      exitCode: 0,
+      durationMs: 10,
+      startedMs: Date.now(),
+    });
+    if (quiet.status !== 'unknown' || quiet.exit.signal !== null) {
+      throw new Error('0 退出且没报告应为 unknown / signal=null');
+    }
+    return 'exit/signal/耗时/session 指针 ok';
+  } finally {
+    if (prevHome === undefined) delete process.env.DSH_HOME;
+    else process.env.DSH_HOME = prevHome;
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 });
 check('maa-bbb 集成（识宝小助手）', () => {
   // 引擎注册
