@@ -212,6 +212,7 @@ The plugin installs from GitHub source as-is; publish it to npm to get a downloa
 - The workflow runs `node test/smoke.mjs` and `npm publish --dry-run` first, then `npm publish --provenance`, and finally polls the registry until the version is really visible; `prepublishOnly` runs the smoke test again so a broken package cannot ship.
 - **npm publishes asynchronously**: after the log prints `+ dsh-game-daily@x.y.z`, the version can stay invisible on the registry for several minutes (0.3.13 took about 10 minutes). Re-publishing the same version inside that window fails with `E409 Cannot publish over previously staged version` — that only means the first upload is still in the pipeline, so **do not retry and do not bump the version**; the workflow treats it as "already publishing" and keeps waiting for up to 20 minutes.
 - To appear in the [plugin catalog](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin), open a PR adding `data/plugins/<owner>__<repo>.yml` (already done for this plugin).
+
 ## Development
 
 ```powershell
@@ -220,6 +221,12 @@ node --check index.js        # syntax check
 ```
 
 `lib/` is pure Node with no third-party dependencies; `client.js` is a Harness lazy client factory (`window.__ModuleLoader__.load`) that registers exactly one slot: `settings.section`.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=gychen-NJU/dsh-game-daily&type=date&legend=top-left)](https://star-history.com/#gychen-NJU/dsh-game-daily&Date)
+
+Current stars: ![GitHub stars](https://img.shields.io/github/stars/gychen-NJU/dsh-game-daily?style=flat-square&logo=github&label=stars)
 
 ## License
 

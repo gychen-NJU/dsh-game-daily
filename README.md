@@ -213,6 +213,7 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 - 工作流会先跑 `node test/smoke.mjs` 和 `npm publish --dry-run`，再 `npm publish --provenance`，最后轮询 registry 确认版本真的可见；`prepublishOnly` 也会跑一遍 smoke，坏包不会发出去。
 - **npm 发布是异步的**：日志打印 `+ dsh-game-daily@x.y.z` 之后，registry 还要几分钟到十几分钟才可见（0.3.13 实测约 10 分钟）。这期间重发同版本会报 `E409 Cannot publish over previously staged version` —— 那只代表上一份还在流水线里，**不要重试、不要改版本号**；工作流会把它识别为「已在发布中」并继续等待，最多 20 分钟。
 - 想让条目出现在 [插件市场目录](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)，往该仓库提一个 `data/plugins/<owner>__<repo>.yml` 的 PR 即可（本插件已据此提交）。
+
 ## 开发
 
 ```powershell
@@ -221,6 +222,12 @@ node --check index.js        # 语法自检
 ```
 
 `lib/` 全部是纯 Node 模块（无第三方依赖）；`client.js` 是 Harness 的 lazy client 工厂（`window.__ModuleLoader__.load`），只注册 `settings.section` 一个 slot。
+
+## Star 趋势
+
+[![Star History Chart](https://api.star-history.com/chart?repos=gychen-NJU/dsh-game-daily&type=date&legend=top-left)](https://star-history.com/#gychen-NJU/dsh-game-daily&Date)
+
+当前星数：![GitHub stars](https://img.shields.io/github/stars/gychen-NJU/dsh-game-daily?style=flat-square&logo=github&label=stars)
 
 ## 许可
 
