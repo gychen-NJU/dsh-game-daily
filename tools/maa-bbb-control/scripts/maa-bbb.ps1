@@ -1201,7 +1201,7 @@ function Invoke-DoctorAction {
     if ($adb.available) {
         [void]$checks.Add((New-Check -Id 'adb' -Status 'pass' -Detail ('adb found: ' + [string]$adb.path + ' (source: ' + [string]$adb.source + ')')))
     } else {
-        [void]$checks.Add((New-Check -Id 'adb' -Status 'warn' -Detail 'adb not found. Needed only for the Android controller (MuMu + ADB), for example the Past Elysia Realms lane.'))
+        [void]$checks.Add((New-Check -Id 'adb' -Status 'warn' -Detail 'adb not found. Needed only for Android-only options (e.g. pre-battle buff sync); desktop Elysian Realm does not need it.'))
         $warnings += 'MAA_ADB_MISSING'
     }
 
@@ -1211,7 +1211,7 @@ function Invoke-DoctorAction {
         elseif (@($mumu.processes).Count -gt 0) { $mumuDetail = 'MuMu process running: ' + (@($mumu.processes) -join ', ') }
         [void]$checks.Add((New-Check -Id 'mumu' -Status 'pass' -Detail $mumuDetail))
     } else {
-        [void]$checks.Add((New-Check -Id 'mumu' -Status 'warn' -Detail 'MuMu emulator not detected. Needed only for the Android controller.'))
+        [void]$checks.Add((New-Check -Id 'mumu' -Status 'warn' -Detail 'MuMu emulator not detected. Needed only for Android-only options; desktop runs are unaffected.'))
         $warnings += 'MAA_MUMU_MISSING'
     }
 

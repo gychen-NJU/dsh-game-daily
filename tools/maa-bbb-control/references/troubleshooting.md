@@ -13,7 +13,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action logs -Kind gui -L
 ```
 
 - `doctor.ok=false` 且 `error=MAA_NOT_INSTALLED` → 安装根问题，看 §1。
-- `doctor.ok=true` 但 `warnings` 含 `MAA_ADB_MISSING` / `MAA_MUMU_MISSING` → 只影响往世乐土，日常照跑，看 §5。
+- `doctor.ok=true` 但 `warnings` 含 `MAA_ADB_MISSING` / `MAA_MUMU_MISSING` → 只影响安卓端专属可选项，日常与桌面端乐土照跑，看 §5。
 - `status.running=true` 但 `maafw.log` 的 `lastWrite` 不更新 → 卡在“找窗口/分辨率/权限”，看 §3。
 - `crash.log` 非 0 字节 → 看 §7。
 
@@ -113,17 +113,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action logs -Kind maafw 
 
 ## 5. ADB / MuMu / 往世乐土
 
+**先记住结论：往世乐土不需要 MuMu。** Maa_bbb v1.13.22 起桌面端与安卓端都支持乐土（`tasks\周常\往世乐土.json` 的选项 controller 同时列了「桌面端」「安卓端」，`resource\resource_win32` 有桌面端专用覆盖）。`MAA_ADB_MISSING` / `MAA_MUMU_MISSING` 只影响安卓端专属的可选项（例如战前增益同步），不影响日常，也不影响桌面端乐土。
+
 | 症状 | 检查 | 修复 |
 |---|---|---|
-| `doctor` 报 `MAA_ADB_MISSING` | `where adb`、`adb devices` | 装 platform-tools 或直接用 MuMu 自带 adb |
+| `doctor` 报 `MAA_ADB_MISSING` | `where adb`、`adb devices` | 只有要走安卓端才需要；装 platform-tools 或直接用 MuMu 自带 adb |
 | MuMu 已开但 `adb devices` 为空 | MuMu 设置里 ADB 是否开启；端口 | MuMu 多开器 → ADB 端口；`adb connect 127.0.0.1:<端口>` |
 | `adb devices` 显示 `unauthorized` | 模拟器内是否弹过授权 | 在模拟器里点“允许”，或重启 adb server |
 | `offline` | adb 版本/端口冲突 | `adb kill-server` 后重连；只用一份 adb |
 | MuMu adb 路径 | MuMu 安装目录 | 旧版 `{安装目录}\shell\adb.exe`；MuMu 5.0 `{安装目录}\nx_main\adb.exe`；模拟器主程序 `nx_device\12.0\shell\MuMuNxDevice.exe` |
-| 乐土只走到“箱庭”就停 | `tasks\周常\往世乐土.json` 是否为完整版 | 上游 README 标注乐土“开发中，目前仅导航至乐土箱庭”；本 Fork 声称接入 MuMu 全自动乐土（适配 窈窕谍影·华裳 / 神·寻梦者 / 浮生·渡尘之羽），若仍只到箱庭，按“未适配当前角色/流派”处理，不要硬跑 |
-| 乐土配置是桌面端 | `configs` 的 `controller` | 乐土需要**安卓端 + MuMu + ADB**；在 GUI 里把控制器切到安卓端、选对 resource，并确认模拟器 16:9 |
+| 乐土只走到“箱庭”就停 | `tasks\周常\往世乐土.json` 是否为完整版 | 上游 README 的“仅导航至乐土箱庭”是旧版；本 Fork 已接全自动（适配 窈窕谍影·华裳 / 神·寻梦者 / 浮生·渡尘之羽），若仍只到箱庭，按“未适配当前角色/流派”处理，不要硬跑 |
+| 担心 `controller=桌面端` 跑不了乐土 | `configs` 的 `controller` | **桌面端就是支持乐土的**（按住 Alt 拖视角 + WASD 移动都有专门实现）；直接勾「往世乐土」跑即可，不要因为 `adbAvailable=false` 跳过 |
+| 桌面上跑乐土中途视角乱转/撞墙 | `agent\custom\utils\DesktopInput.py` / `MoveInput.py` 是否存在 | 这两个是桌面端专用输入层；缺失说明 Maa_bbb 版本过旧（需 ≥ 支持双端适配的版本），升级后重试 |
 
-> 本机现状（2026-11-14）：**未安装 MuMu，PATH 里也没有 adb**。因此往世乐土只能给配置与说明，不能实跑；日常/周常走桌面端。
+> 本机现状（2026-11-23）：**未安装 MuMu，PATH 里也没有 adb** —— 这不再影响往世乐土，只影响安卓端专属项；日常/周常/乐土都走桌面端。
 
 ## 6. 停止与进程残留
 

@@ -18,7 +18,7 @@ import { inspectZzzInstall, zzzHealthSync, zzzBaseUrl, zzzInstallTargets, ensure
 import { compareVersions, readLocalVersion, readPackage } from '../lib/update.mjs';
 import { appendSession } from '../lib/install.mjs';
 import { inspectM7aInstallRoot, extractJson, m7aFacts, DEFAULT_M7A_TASK, exitMeaning } from '../lib/m7a.mjs';
-import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath, maaLeylineConfig, maaSetTaskChecked, ensureMaaExitTask, MAA_EXIT_TASK_NAME } from '../lib/maa.mjs';
+import { inspectMaaInstallRoot, maaInstallInfo, maaDailyConfig, maaConfigList, maaFacts, isBh3Running, ensureBh3Running, bh3ExePath, maaLeylineConfig, maaSetTaskChecked, ensureMaaExitTask, MAA_EXIT_TASK_NAME } from '../lib/maa.mjs';
 import { stateDir, pointerPath, readPointer, writePointer, normalizeRoot, dedupe, inspectBettergiRoot, bettergiInfo, bettergiRoot, gameExe, gameExeCandidates, BETTERGI_ROOT_DEFAULT } from '../lib/gamepaths.mjs';
 
 const results = [];
@@ -720,6 +720,36 @@ check('maa-bbb 集成（识宝小助手）', () => {
   const probe = maaInstallInfo();
   if (!probe || typeof probe.ok !== 'boolean') throw new Error('maaInstallInfo 应返回带 ok 的对象');
 
+  // 乐土选择逻辑（#9）：默认跳过含乐土的日常；DSH_GAME_DAILY_MAA_LEYLINE=1 才允许；
+  // 乐土配置只认「勾了往世乐土任务」的那份，名字带乐土但没勾任务的不算。
+  {
+    const fakeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-maaley-'));
+    const cfgDir = path.join(fakeRoot, 'config', 'configs');
+    fs.mkdirSync(cfgDir, { recursive: true });
+    fs.writeFileSync(path.join(fakeRoot, 'mab.exe'), '');
+    fs.writeFileSync(path.join(fakeRoot, 'interface.json'), JSON.stringify({ version: 'vtest' }));
+    const mk = (id, name, tasks) => fs.writeFileSync(
+      path.join(cfgDir, `${id}.json`),
+      JSON.stringify({ item_id: id, name, tasks: tasks.map((t, i) => ({ name: t, item_id: `T${i}`, is_checked: true })) }),
+    );
+    mk('c_' + '1'.repeat(32), '日常-简化', ['日常奖励领取']);
+    mk('c_' + '2'.repeat(32), '日常-完整', ['日常奖励领取', '每周分享', '往世乐土']);
+    mk('c_' + '3'.repeat(32), '日常-跳过乐土', ['日常奖励领取', '每周分享']);
+    mk('c_' + '4'.repeat(32), '单独运行', ['往世乐土', '克莱茵在线乐土打灰']);
+
+    const d0 = maaDailyConfig(fakeRoot);
+    if (!d0 || d0.hasLeyline) throw new Error('默认不该选含往世乐土的日常配置');
+    if (d0.name !== '日常-跳过乐土') throw new Error(`默认应选勾选最多且不含乐土的那份，实得 ${d0.name}`);
+    const old = process.env.DSH_GAME_DAILY_MAA_LEYLINE;
+    process.env.DSH_GAME_DAILY_MAA_LEYLINE = '1';
+    const d1 = maaDailyConfig(fakeRoot);
+    if (old === undefined) delete process.env.DSH_GAME_DAILY_MAA_LEYLINE; else process.env.DSH_GAME_DAILY_MAA_LEYLINE = old;
+    if (!d1 || !d1.hasLeyline || d1.name !== '日常-完整') throw new Error('MAA_LEYLINE=1 时应允许选含乐土的日常配置');
+    const l0 = maaLeylineConfig(fakeRoot);
+    if (!l0 || l0.name !== '单独运行' || !l0.hasLeylineTask) throw new Error('乐土配置应选勾了乐土任务、且勾选最少的那份');
+    fs.rmSync(fakeRoot, { recursive: true, force: true });
+  }
+
   // 提示词必须走 maa-bbb 分支
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gd-maa-'));
   const prompt = buildRunPrompt({
@@ -744,16 +774,23 @@ check('maa-bbb 集成（识宝小助手）', () => {
     if (!daily) throw new Error('已安装但没有可用配置');
     if (!daily.id || !daily.name) throw new Error('daily 配置缺 id/name');
     if (typeof daily.hasLeyline !== 'boolean') throw new Error('daily 应带 hasLeyline 标记');
+    // 默认（未设 DSH_GAME_DAILY_MAA_LEYLINE）必须跳过含往世乐土的配置；只有全都含乐土时才允许命中
+    const dailyPool = maaConfigList(info.root).filter((c) => /日常/.test(c.name));
+    const leanExists = dailyPool.some((c) => !(c.enabledTasks || []).some((n) => /往世乐土/.test(String(n))));
+    if (leanExists && daily.hasLeyline) throw new Error('默认不该选含往世乐土的日常配置');
     const facts = maaFacts();
     if (!facts || typeof facts !== 'object' || !Array.isArray(facts.lines)) throw new Error('maaFacts 结构不对');
     detail = `${info.version} / 日常配置 ${daily.name}（勾选 ${daily.checkedCount}，乐土 ${daily.hasLeyline ? '是' : '否'}）/ ADB ${info.adbAvailable ? '有' : '无'}`;
 
-    // 往世乐土：要么返回 null，要么返回带 adbAvailable/hasLeylineTask 的配置
+    // 往世乐土：不按控制器筛选，返回带 controller/adbAvailable/hasLeylineTask 的配置
     const ley = maaLeylineConfig(info.root);
-    if (ley !== null && (typeof ley !== 'object' || !ley.id || typeof ley.adbAvailable !== 'boolean' || typeof ley.hasLeylineTask !== 'boolean')) {
+    if (ley !== null && (typeof ley !== 'object' || !ley.id || typeof ley.controller !== 'string' || typeof ley.adbAvailable !== 'boolean' || ley.hasLeylineTask !== true)) {
       throw new Error('maaLeylineConfig 返回值结构不对');
     }
     if (!facts.lines.some((l) => /往世乐土配置/.test(l))) throw new Error('maaFacts 里缺乐土配置那一行');
+    // 旧假设回归：桌面端跑乐土不再需要 MuMu/ADB，prompt 里不能再说「不要拿桌面端硬跑乐土」
+    if (prompt.includes('不要拿桌面端硬跑乐土')) throw new Error('prompt 仍把往世乐土限定为安卓端');
+    if (!prompt.includes('桌面端')) throw new Error('prompt 没说明乐土桌面端可跑');
     // 跑完退出游戏：任务名固定；未知任务必须被拒绝（不会误改配置）
     if (MAA_EXIT_TASK_NAME !== '退出/关闭游戏') throw new Error('MAA_EXIT_TASK_NAME 不对');
     if (typeof ensureMaaExitTask !== 'function') throw new Error('缺 ensureMaaExitTask');

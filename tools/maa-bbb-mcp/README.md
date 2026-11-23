@@ -80,8 +80,9 @@ node tools\maa-bbb-mcp\maa-bbb-mcp.mjs
 
 ## 已知限制
 
-- 本机没有 adb / MuMu 模拟器：`adbAvailable`、`mumuAvailable` 为 `false`，安卓端（往世乐土等）
-  只能做配置面支持，不能实跑。检测顺序为 `where adb` + 常见 SDK/MuMu 路径、`MUMU_INSTALL_PATH`。
+- 本机没有 adb / MuMu 模拟器：`adbAvailable`、`mumuAvailable` 为 `false`。这**只影响安卓端专属可选项**
+  （例如乐土的战前增益同步）；日常与往世乐土的**桌面端**链路都照跑（Maa_bbb v1.13.22 起双端适配）。
+  检测顺序为 `where adb` + 常见 SDK/MuMu 路径、`MUMU_INSTALL_PATH`。
 - `maa_bbb_run` 会真的启动 GUI 并控制游戏窗口；游戏未开时 MaaFramework 会在日志里报窗口/识别错误，
   这属于预期。`waitSeconds` 只确认进程存活，不代表任务成功。
 - 任务实际执行结果仍以 `debug/maafw.log` / `gui.log` 为准；本服务不做视觉或流程判定。

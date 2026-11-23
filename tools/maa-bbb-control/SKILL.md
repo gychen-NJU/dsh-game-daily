@@ -10,7 +10,7 @@ description: 用 Maa_bbb（识宝小助手，MFW-ChainFlow Assistant）的 mab.e
 
 ## 0. 开工三件事
 
-1. **doctor**：确认安装根、版本、配置数，以及 adb / MuMu 是否存在（只有乐土需要）。
+1. **doctor**：确认安装根、版本、配置数（adb / MuMu 只是可选信息，不影响任何游戏能不能跑）。
 2. **status + configs**：确认没有别的 `mab.exe` 在跑，并选定 `-ConfigId`。
 3. **run 之后必须值守**：用 `logs` 每 30–60 秒看一次，直到收尾或确认卡死，不能启动完就离开。
 
@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action doctor
 | 用指定配置启动一次 `--direct-run` | 运行中切换配置、暂停/跳过某个子任务 |
 | 读 `maafw` / `gui` / `crash` 日志尾部并按正则过滤 | 识别游戏画面、替玩家做游戏内决策 |
 | 结束 `mab.exe` 进程（含子进程） | 直接控制游戏（那是 MaaFramework 的任务） |
-| 说明乐土所需的 MuMu / ADB 条件 | 在本机没有 MuMu/ADB 时“凭空”跑乐土 |
+| 说明 adb / MuMu 状态（只影响安卓端专属可选项，如战前增益同步） | 安装 MuMu、给用户开 ADB |
 
 ## 2. 五步标准流程
 
@@ -41,7 +41,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action doctor
 看四件事：`ok`、`root`、`configCount`、`blockers`。
 
 - `ok:true` + `blockers:[]` → 可继续。
-- `warnings` 里的 `MAA_ADB_MISSING` / `MAA_MUMU_MISSING` 只影响**往世乐土**，日常照跑。
+- `warnings` 里的 `MAA_ADB_MISSING` / `MAA_MUMU_MISSING` 只影响**安卓端专属可选项**（例如乐土的战前增益同步），日常与桌面端乐土照跑。
 - `ok:false` → 先按 `error` 处理（见 §9），不要硬跑。
 
 ### 第 2 步：status + configs，选定配置
@@ -100,7 +100,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action stop
 |---|---|---|---|
 | 日常(每天都能做的任务) | `c_cd0c4fa2a4d14330bac904139dfa5d2f` | 14 个已勾选（见下） | **每天第一次跑** |
 | 日常(包含周期性任务) | `c_f28349bb8c1e40caa8a5d587e4cd1a30` | 21 个已勾选 | 周一/周常日 |
-| 单独运行 | `c_6b2e154a1e3f40bf9db700bcd53f3e2e` | 仅「克莱茵在线乐土打灰」「往世乐土」 | 乐土专项（需安卓端，见 §4） |
+| 单独运行 | `c_6b2e154a1e3f40bf9db700bcd53f3e2e` | 仅「克莱茵在线乐土打灰」「往世乐土」 | 乐土专项（桌面端可直接跑，见 §4） |
 
 **日常(每天都能做的任务)** 已勾选：崩坏三 启动！、家园资源领取、日常奖励领取-第一次、材料远征、家园远征派遣、家园打工、舰团每日委托、舰团每周活跃奖励、模拟作战室-减负、后勤终端物品购买、日常奖励领取-第二次、日常活跃专领、凭证奖励尝试领取、领取邮箱奖励。
 
@@ -120,14 +120,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action stop
 - 想单独打某项（乐土、自动战斗、洗词缀）→ “单独运行”配置，**不要**和日常同时跑。
 - 用户临时要求“只跑某几个任务”时，不要改配置；直接告诉用户需要在 GUI 里改勾选，或者选最接近的现有配置。
 
-## 4. 往世乐土：当前限制（重要）
+## 4. 往世乐土：怎么跑（重要）
 
-- 乐土要求 **安卓端控制器 + MuMu 模拟器 + ADB**。`configs` 里三个配置目前都是 `controller=桌面端`，直接 run 不会进入乐土流程。
-- 本机（2026-11-14）**没有安装 MuMu，PATH 里也没有 adb**：`doctor` 会给出 `MAA_ADB_MISSING` / `MAA_MUMU_MISSING`（warn，不是 blocker）。因此当前只能准备配置与说明，**不能实跑乐土**。
-- 上游 README 把「往世乐土-周常通关」标为 🚧 开发中（“目前仅导航至乐土箱庭”）；本 Fork 声称接入 MuMu 全自动乐土，适配 窈窕谍影·华裳 / 神·寻梦者 / 浮生·渡尘之羽。实际能否通关以日志为准，不要向用户保证。
+- **不需要 MuMu**：Maa_bbb **v1.13.22 起桌面端与安卓端都支持**乐土。`tasks\周常\往世乐土.json` 的选项 `往世乐土-关内角色` / `往世乐土-禁用刻印` 明确写了 `"controller": ["桌面端","安卓端"]`；桌面端链路有专门适配（`agent\custom\utils\DesktopInput.py` 按住 Alt 拖视角、`MoveInput.py` 用 WASD 代替摇杆，`resource\resource_win32\pipeline\往世乐土\乐土导航.json` 补了 F 键「打开快速出击」）。
+- 所以 `configs` 里三个 `controller=桌面端` 的配置，只要勾了「往世乐土」，直接 `run` 就会进乐土流程；**`adbAvailable=false` 不是跳过乐土的理由**。
+- MuMu / ADB 只影响**安卓端专属的可选项**：例如战前增益同步（`ElysianBuffSync`）只在 MuMu 下生效。想用安卓端才需要 MuMu + `adb connect`。
+- 上游 README 的「往世乐土-周常通关（开发中，目前仅导航至乐土箱庭）」是**旧版**状态；本 Fork 已接全自动（适配 窈窕谍影·华裳 / 神·寻梦者 / 浮生·渡尘之羽）。实际能否通关**以日志为准**，不要向用户保证。
 - 乐土相关配置项（在 `get` 的 `task_option` 里）：关内角色=窈窕谍影、流派=往世乐土-深层序列-窈窕谍影-华裳、战前增益全 Yes、商店处理=绕过商店不购买（安卓=自动购买）、刻印优先级自选=Yes、门的选择优先级=No。
-- MuMu adb 路径：旧版 `{MuMu安装目录}\shell\adb.exe`；MuMu 5.0 `{安装目录}\nx_main\adb.exe`；模拟器主程序 `{安装目录}\nx_device\12.0\shell\MuMuNxDevice.exe`。模拟器分辨率要自行设成 16:9。
-- 需要改控制器/资源时，**让用户在 GUI 里改**，本技能不写 `config/`。
+- 乐土是**周常**（单轮约 14 分钟）：插件默认让「日常」配置跳过它，别把乐土塞进每日流程；单跑请用「单独运行」配置。要连乐土一起跑，让用户设 `DSH_GAME_DAILY_MAA_LEYLINE=1`。
+- 安卓端才需要 MuMu adb 路径：旧版 `{MuMu安装目录}\shell\adb.exe`；MuMu 5.0 `{安装目录}\nx_main\adb.exe`；模拟器主程序 `{安装目录}\nx_device\12.0\shell\MuMuNxDevice.exe`。模拟器分辨率要自行设成 16:9。
+- 需要改控制器/资源/勾选时，**让用户在 GUI 里改**，本技能不写 `config/`。
 
 ## 5. 脚本动作速查
 
@@ -175,7 +177,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File $s -Action run -ConfigId c_f
 5. **自动战斗期间不要按 `Win` / `Ctrl` / `Alt`。** 会弹出快捷键窗口遮挡识别。
 6. **PC 端请以管理员启动 mab.exe**，并在游戏内 设置→辅助 关闭「显示菜单提示」。
 7. **不要在更新/维护/登录页跑日常**；先把游戏手动推进到主界面。
-8. 不要向用户承诺“乐土一定能通关”；本机没有 MuMu/ADB 时明确说明不能实跑。
+8. 不要向用户承诺“乐土一定能通关”；桌面端不需要 MuMu/ADB，也不要拿“缺 MuMu”当跳过的理由。
 
 ## 8. 现实约束
 

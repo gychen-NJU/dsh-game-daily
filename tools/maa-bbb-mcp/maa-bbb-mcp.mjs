@@ -37,7 +37,8 @@
  * 协议：stdio JSON-RPC 2.0；stdout 只出 JSON-RPC，stderr 打 [maa-bbb-mcp] 日志；
  * initialize 固定返回 protocolVersion 2025-06-18、capabilities.tools、serverInfo maa-bbb-mcp@0.1.0。
  *
- * 已知限制：本机没有 adb 与 MuMu 模拟器，安卓端（往世乐土等）只能做配置面支持，不能实跑。
+ * 已知限制：本机没有 adb 与 MuMu 模拟器；这只影响安卓端专属可选项（如战前增益同步），
+ * 日常与往世乐土的桌面端链路都照跑（Maa_bbb v1.13.22 起双端适配）。
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';

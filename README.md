@@ -114,6 +114,8 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 | `DSH_GAME_DAILY_BETTERGI` | 自动探测（见下） | BetterGI 安装根或 `BetterGI.exe` 路径；别名 `DSH_GAME_DAILY_BETTERGI_ROOT` / `BETTERGI_ROOT`（体检、MCP、脚本共用） |
 | `DSH_GAME_DAILY_DSH_BIN` | 自动解析（见下） | 指定 dsh CLI 入口（`.cmd` 或 `lib/bin.js`），优先级最高 |
 | `DSH_GAME_DAILY_NODE` | 自动解析（见下） | 指定 `node.exe`（生成 MCP 配置 / 计划任务时用；PATH 里没有 node 时必设） |
+| `DSH_GAME_DAILY_MAA_KEEP_APP` | — | `1` = 收尾不关 `mab.exe`（默认会关） |
+| `DSH_GAME_DAILY_MAA_LEYLINE` | — | `1` = 允许「日常」配置里带往世乐土（默认自动跳过含乐土的那份） |
 
 - **dsh CLI 怎么找**（`依赖体检 → dsh CLI` 会显示命中的「来源」）：`DSH_GAME_DAILY_DSH_BIN` → `%APPDATA%\npm`（老的默认位置）→ `PATH` 里的 dsh（含 DSH 自带的 `resources\runtime\cli\bin\dsh.cmd`）→ `npm prefix -g` → `/usr/local/lib`、`/usr/lib`。**DSH 装在非系统盘或用安装包装的机器**，靠前两档就能命中，不再被误判为「没装」。
 - **node 怎么找**：`DSH_GAME_DAILY_NODE` → `where node` → `Program Files\nodejs`、`%LOCALAPPDATA%\Programs\nodejs` → 当前进程。写进 MCP 配置与计划任务的是**解析出来的绝对路径**（不是裸 `node`），所以 PATH 里没有 node 也能把 MCP 起起来。
@@ -160,8 +162,8 @@ Agent 会自己完成 clone、`install_bundle`、确认插件已激活，并按�
 崩坏3 的日常现在交给外部开源项目 **Maa_bbb（识宝小助手，MaaFramework）**：插件只负责起跑前保证游戏在跑、按配置启动 `mab.exe`、值守看日志、收尾汇报。
 
 - 安装：把 [Maa_bbb Releases](https://github.com/miaojiuqing/Maa_bbb/releases) 的 `Maa_bbb-win-x86_64-*.zip` 解压到**非系统盘**（例如 `E:\software\Maa_bbb`），首次运行一次 `mab.exe` 让它生成三个预设配置，然后把目录写进 `<状态目录>\maa-root.txt`（或设 `DSH_GAME_DAILY_MAA_ROOT`）。
-- 日常：插件会挑名字含「日常」的配置；本机**没有 ADB/MuMu** 时自动选更精简的那份（避免往世乐土把整轮拖挂），有 ADB 时选任务更全的那份。
-- 往世乐土：仓库当前走**安卓端 MuMu + ADB**，本机没有就只能做配置面支持，汇报里会写明「乐土未跑：缺 MuMu/ADB」。
+- 日常：插件会挑名字含「日常」的配置，并**默认排除勾了「往世乐土」的那份**（乐土是周常，单轮约 14 分钟，不该混进每日）；要连乐土一起跑，设 `DSH_GAME_DAILY_MAA_LEYLINE=1`（插件不会去改你配置里的任务勾选）。
+- 往世乐土：Maa_bbb **v1.13.22 起桌面端与安卓端都支持**，不需要 MuMu 模拟器；在配置里勾上「往世乐土」即可。`adbAvailable` 只影响安卓端专属的可选项（例如战前增益同步），不影响桌面端跑乐土。
 - 硬性环境：Windows 桌面端需**管理员**运行、游戏 16:9、游戏内 设置 → 辅助 关闭「显示菜单提示」。
 - 收尾：一次真实运行结束后会把 `mab.exe` 一起关掉（不留后台常驻），下次起跑再拉起；想让它留着（手动调试/复用）设 `DSH_GAME_DAILY_MAA_KEEP_APP=1`。
 - 出问题先看 `E:\software\Maa_bbb\debug\maafw.log` 与 `debug\gui.log`；「设备连接失败」= 游戏窗口没起来（插件已自动拉起，仍失败就说明 BH3.exe 路径不对）。
