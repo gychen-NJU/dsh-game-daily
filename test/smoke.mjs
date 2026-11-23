@@ -290,7 +290,50 @@ Promise.resolve()
         if (first.backup && !fs.existsSync(first.backup)) throw new Error('缺少备份文件');
         const second = registerBettergiMcp({ profile: 'test', scriptPath: fake, home });
         if (!second.ok || second.changed !== false) throw new Error('重复注册不应再写');
-        return 'patch append + idempotent + backup ok';
+        // #5 存量场景：早先写进 profile 的是裸 `node` + 旧脚本路径，重注册时应就地修补且不动别的条目。
+        const legacy = [
+          '- insert:',
+          '    - id: bettergi-mcp',
+          "      name: '@deepseek-ai/dsh-mcp-client'",
+          '      config:',
+          '        serverName: bettergi',
+          '        command: node',
+          '        args:',
+          "          - 'D:/old/place/bettergi-mcp.mjs'",
+          '',
+          '- insert:',
+          '    - id: unrelated',
+          '      config:',
+          '        command: node',
+          '',
+        ].join('\n');
+        fs.writeFileSync(file, legacy, 'utf8');
+        const repaired = registerBettergiMcp({ profile: 'test', scriptPath: fake, home });
+        if (!repaired.ok || repaired.changed !== true || repaired.rewritten !== true) {
+          throw new Error(`存量条目应就地修补：${JSON.stringify(repaired)}`);
+        }
+        const fixed = fs.readFileSync(file, 'utf8');
+        const fixedLines = fixed.split(/\r?\n/);
+        const cmdIdx = fixedLines.findIndex((line) => /^\s+command:/.test(line));
+        const fixedCmd = String(fixedLines[cmdIdx] || '').replace(/^\s+command:\s*/, '').replace(/^'|'$/g, '');
+        if (!fixedCmd || /^node$/i.test(fixedCmd) || !fs.existsSync(fixedCmd)) {
+          throw new Error(`修补后 command 仍不可用：${fixedLines[cmdIdx]}`);
+        }
+        if (fixed.includes('D:/old/place/bettergi-mcp.mjs')) throw new Error('修补后 args 仍指向旧脚本路径');
+        if (!fixed.includes(fake.replace(/\\/g, '/'))) throw new Error('修补后 args 未指向当前脚本');
+        const unIdx = fixedLines.findIndex((line) => /id:\s*unrelated/.test(line));
+        let unCmd = '';
+        for (let i = unIdx + 1; i < fixedLines.length && !/^-\s/.test(fixedLines[i]); i += 1) {
+          if (/^\s+command:/.test(fixedLines[i])) {
+            unCmd = fixedLines[i];
+            break;
+          }
+        }
+        if (!/^\s+command:\s*node\s*$/.test(unCmd)) throw new Error(`无关条目不应被改：${unCmd}`);
+        if (repaired.backup && !fs.existsSync(repaired.backup)) throw new Error('修补缺少备份文件');
+        const third = registerBettergiMcp({ profile: 'test', scriptPath: fake, home });
+        if (!third.ok || third.changed !== false) throw new Error('修补后再次注册不应再写');
+        return 'patch append + idempotent + 存量修补 + backup ok';
       } finally {
         fs.rmSync(home, { recursive: true, force: true });
       }
