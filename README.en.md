@@ -114,6 +114,8 @@ Settings panel ──POST /api/game-daily/apply──▶ state.json + automation
 | `DSH_GAME_DAILY_BETTERGI` | auto-detected (see below) | BetterGI install root or `BetterGI.exe` path; aliases `DSH_GAME_DAILY_BETTERGI_ROOT` / `BETTERGI_ROOT` (dependency check, MCP, scripts) |
 | `DSH_GAME_DAILY_DSH_BIN` | auto-resolved (see below) | Explicit dsh CLI entry (`.cmd` or `lib/bin.js`), highest priority |
 | `DSH_GAME_DAILY_NODE` | auto-resolved (see below) | Explicit `node.exe` (used for MCP config / scheduled tasks; set it when node is not on PATH) |
+| `DSH_GAME_DAILY_MAA_KEEP_APP` | — | `1` = keep `mab.exe` running after a run (closed by default) |
+| `DSH_GAME_DAILY_MAA_LEYLINE` | — | `1` = allow the daily config to include Elysian Realm (the plugin otherwise skips configs with it) |
 
 - **How the dsh CLI is found** (the dependency check shows the matching "source"): `DSH_GAME_DAILY_DSH_BIN` → `%APPDATA%\npm` (legacy default) → dsh on `PATH` (including the `resources\runtime\cli\bin\dsh.cmd` shipped with DSH) → `npm prefix -g` → `/usr/local/lib`, `/usr/lib`. Machines where **DSH lives on a non-system drive or was installed by the installer** hit one of the first two tiers instead of being reported as "not installed".
 - **How node is found**: `DSH_GAME_DAILY_NODE` → `where node` → `Program Files\nodejs`, `%LOCALAPPDATA%\Programs\nodejs` → current process. MCP configs and scheduled tasks store the **resolved absolute path** (no bare `node`), so MCP starts even when node is missing from PATH.
@@ -160,8 +162,8 @@ So that "install the plugin = all tools present", both Genshin companion tools *
 HI3 dailies are delegated to the external open-source **Maa_bbb** (MaaFramework). The plugin only makes sure the game is running, starts `mab.exe` with the chosen profile, watches the logs and reports.
 
 - Install: unzip the `Maa_bbb-win-x86_64-*.zip` release **outside the system drive** (e.g. `E:\software\Maa_bbb`), run `mab.exe` once so it creates the three preset configs, then write the folder into `<stateDir>\maa-root.txt` (or set `DSH_GAME_DAILY_MAA_ROOT`).
-- Daily: the plugin picks a config whose name contains 日常; without ADB/MuMu it prefers the smaller one, with ADB it prefers the fuller one.
-- Elysian Realm (往世乐土): currently needs the Android target (MuMu + ADB). Without it the plugin only supports configuration and says so in the report.
+- Daily: the plugin picks a config whose name contains 日常 and **skips the one with 往世乐土 ticked** (Elysian Realm is weekly, ~14 min, and should not be part of a daily run). Set `DSH_GAME_DAILY_MAA_LEYLINE=1` to include it; the plugin never edits your task selection.
+- Elysian Realm (往世乐土): **both desktop and Android targets are supported since Maa_bbb v1.13.22** — no MuMu emulator required; just tick 往世乐土 in the config. `adbAvailable` only affects Android-only options (e.g. pre-battle buff sync), not desktop runs.
 - Requirements: run as administrator on the desktop target, game at 16:9, and turn off 设置 → 辅助 → 显示菜单提示.
 - Cleanup: when a real run finishes, `mab.exe` is closed as well (no background resident); the next run starts it again. Set `DSH_GAME_DAILY_MAA_KEEP_APP=1` to keep it (manual debugging / reuse).
 - Debug with `debug\maafw.log` / `debug\gui.log`; "设备连接失败" means the game window was missing.

@@ -5,4 +5,4 @@
 - 脚本：`scripts/maa-bbb.ps1`（Windows PowerShell 5.1，纯 ASCII，输出 JSON）
 - 技能说明：`SKILL.md`；命令与路径索引：`references/commands-and-paths.md`；排障：`references/troubleshooting.md`
 - 默认安装根 `E:\software\Maa_bbb`，也可用 `-Root` 或 `DSH_GAME_DAILY_MAA_ROOT` 覆盖
-- 只读 Maa_bbb 的 `config/`，不修改任何现有配置；往世乐土需要安卓端 MuMu + ADB
+- 只读 Maa_bbb 的 `config/`，不修改任何现有配置；往世乐土桌面端/安卓端都支持（桌面端不需要 MuMu）
